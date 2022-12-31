@@ -883,7 +883,6 @@ services:
         lz4
         lzmadec
         lzmainfo
-        miniupnpd-nftables
         mkf2fs
         monit
         mount-utils
