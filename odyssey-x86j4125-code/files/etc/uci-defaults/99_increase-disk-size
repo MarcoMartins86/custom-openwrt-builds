@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# Script from https://openwrt.org/docs/guide-user/installation/openwrt_x86#resizing_partitions
+
+BOOT="$(sed -n -e "\|\s/boot\s.*$|{s///p;q}" /etc/mtab)"
+DISK="${BOOT%%[0-9]*}"
+PART="$((${BOOT##*[^0-9]}+1))"
+echo fix | parted -l ---pretend-input-tty
+parted -s ${DISK} resizepart ${PART} 100%
+
+BOOT="$(sed -n -e "\|\s/boot\s.*$|{s///p;q}" /etc/mtab)"
+DISK="${BOOT%%[0-9]*}"
+PART="$((${BOOT##*[^0-9]}+1))"
+ROOT="${DISK}${PART}"
+UUID="$(lsblk -n -o PARTUUID ${ROOT})"
+sed -i -r -e "s|(PARTUUID=)\S+|\1${UUID}|g" /boot/grub/grub.cfg
+
+exit 0

@@ -1,0 +1,5 @@
+# https://openwrt.org/docs/guide-developer/uci-defaults#integrating_custom_settings
+uci -q batch << EOI
+set network.lan.ipaddr='192.168.2.1'
+commit network
+EOI
