@@ -161,7 +161,6 @@ services:
         iperf
         iperf3-ssl
         ipset
-        iptables-mod-conntrack-extra
         iptables-mod-extra
         iptables-mod-ipopt
         iptables-nft
@@ -225,7 +224,6 @@ services:
         kmod-atl1e
         kmod-atl2
         kmod-atm
-        kmod-atmtcp
         kmod-b43
         kmod-b43legacy
         kmod-b44
@@ -363,14 +361,9 @@ services:
         kmod-input-core
         kmod-input-evdev
         kmod-iosched-bfq
-        kmod-ip-vti
         kmod-ip6-tunnel
-        kmod-ip6-vti
         kmod-ip6tables
-        kmod-ipoa
         kmod-ipsec
-        kmod-ipsec4
-        kmod-ipsec6
         kmod-ipt-conntrack
         kmod-ipt-conntrack-extra
         kmod-ipt-core
@@ -382,7 +375,6 @@ services:
         kmod-ipt-physdev
         kmod-ipt-raw
         kmod-iptunnel
-        kmod-iptunnel4
         kmod-iptunnel6
         kmod-ipvlan
         kmod-ipw2100
@@ -550,12 +542,8 @@ services:
         kmod-rtlwifi-pci
         kmod-rtlwifi-usb
         kmod-rtw88
-        kmod-sched
-        kmod-sched-act-vlan
         kmod-sched-cake
-        kmod-sched-connmark
         kmod-sched-core
-        kmod-sched-mqprio
         kmod-scsi-cdrom
         kmod-scsi-core
         kmod-scsi-generic
@@ -583,12 +571,10 @@ services:
         kmod-switch-rtl8366rb
         kmod-switch-rtl8366s
         kmod-switch-rtl8367b
-        kmod-tcp-bbr
         kmod-tg3
         kmod-thermal
         kmod-tpm
         kmod-tulip
-        kmod-tun
         kmod-udptunnel4
         kmod-udptunnel6
         kmod-usb-acm
@@ -724,7 +710,6 @@ services:
         kmod-wl12xx
         kmod-wl18xx
         kmod-wlcore
-        kmod-xfrm-interface
         kmod-zd1211rw
         lame
         lame-lib
@@ -959,7 +944,6 @@ services:
         procd-seccomp
         procd-ujail
         proto-bonding
-        qos-scripts
         r8152-firmware
         r8169-firmware
         radeon-firmware
