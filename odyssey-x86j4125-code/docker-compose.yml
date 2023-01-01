@@ -157,7 +157,6 @@ services:
         htop
         ibt-firmware
         intel-microcode
-        ip-tiny
         ip6tables-nft
         iperf
         iperf3-ssl
@@ -891,7 +890,6 @@ services:
         mt7622bt-firmware
         mtd
         musl-fts
-        mwan3
         mwl8k-firmware
         nano-full
         netdata
@@ -969,7 +967,6 @@ services:
         rclone-config
         rclone-ng
         rclone-webui-react
-        relayd
         resize2fs
         resolveip
         rpcbind
@@ -1014,7 +1011,6 @@ services:
         squashfs-tools-unsquashfs
         swap-utils
         sysfsutils
-        tc-mod-iptables
         tc-tiny
         terminfo
         ti-3410-firmware
