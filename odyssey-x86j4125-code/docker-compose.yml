@@ -40,27 +40,8 @@ services:
         PACKAGES=
         -libustream-wolfssl
         acl
-        aircard-pcmcia-firmware
         amd64-microcode
         amdgpu-firmware
-        antfs-mount
-        ar3k-firmware
-        ath10k-board-qca4019
-        ath10k-board-qca9377
-        ath10k-board-qca9887
-        ath10k-board-qca9888
-        ath10k-board-qca988x
-        ath10k-board-qca9984
-        ath10k-board-qca99x0
-        ath10k-firmware-qca4019
-        ath10k-firmware-qca6174
-        ath10k-firmware-qca9377
-        ath10k-firmware-qca9887
-        ath10k-firmware-qca9888
-        ath10k-firmware-qca988x
-        ath10k-firmware-qca9984
-        ath10k-firmware-qca99x0
-        ath6k-firmware
         ath9k-htc-firmware
         attr
         b43legacy-firmware
@@ -70,31 +51,19 @@ services:
         blockd
         bnx2-firmware
         bnx2x-firmware
-        brcmfmac-firmware-43602a1-pcie
-        brcmfmac-firmware-4366b1-pcie
-        brcmfmac-firmware-4366c0-pcie
         brcmfmac-firmware-usb
-        bridge
         bsdtar
-        btrfs-progs
         busybox
         bzip2
         ca-bundle
         ca-certificates
         carl9170-firmware
         cgi-io
-        cypress-firmware-4356-pcie
-        cypress-firmware-43570-pcie
-        cypress-firmware-4373-usb
-        cypress-firmware-54591-pcie
-        dbus
         dnslookup
-        dnsmasq-full
         dropbear
         e100-firmware
         e2fsprogs
         edgeport-firmware
-        eip197-mini-firmware
         fdisk
         firewall4
         fstools
@@ -108,7 +77,6 @@ services:
         ibt-firmware
         intel-microcode
         ip6tables-nft
-        iptables-mod-extra
         iptables-mod-ipopt
         iptables-nft
         iucode-tool
@@ -147,7 +115,6 @@ services:
         kmod-8139cp
         kmod-8139too
         kmod-9pnet
-        kmod-adm8211
         kmod-alx
         kmod-amazon-ena
         kmod-amd-xgbe
@@ -161,19 +128,11 @@ services:
         kmod-ata-sil
         kmod-ata-sil24
         kmod-ata-via-sata
-        kmod-ath
-        kmod-ath6kl
-        kmod-ath6kl-usb
-        kmod-ath9k
-        kmod-ath9k-common
-        kmod-ath9k-htc
         kmod-atl1
         kmod-atl1c
         kmod-atl1e
         kmod-atl2
         kmod-atm
-        kmod-b43
-        kmod-b43legacy
         kmod-b44
         kmod-backlight
         kmod-backlight-pwm
@@ -184,12 +143,7 @@ services:
         kmod-bnx2
         kmod-bnx2x
         kmod-bonding
-        kmod-br-netfilter
-        kmod-brcmfmac
-        kmod-brcmsmac
-        kmod-brcmutil
         kmod-button-hotplug
-        kmod-carl9170
         kmod-cdrom
         kmod-cfg80211
         kmod-chaoskey
@@ -289,9 +243,6 @@ services:
         kmod-fuse
         kmod-gre
         kmod-gre6
-        kmod-hermes
-        kmod-hermes-pci
-        kmod-hermes-plx
         kmod-hfcmulti
         kmod-hfcpci
         kmod-hid
@@ -312,16 +263,8 @@ services:
         kmod-ip6-tunnel
         kmod-ip6tables
         kmod-ipsec
-        kmod-ipt-conntrack
-        kmod-ipt-conntrack-extra
         kmod-ipt-core
-        kmod-ipt-extra
         kmod-ipt-ipopt
-        kmod-ipt-ipset
-        kmod-ipt-nat
-        kmod-ipt-nat6
-        kmod-ipt-physdev
-        kmod-ipt-raw
         kmod-iptunnel
         kmod-iptunnel6
         kmod-ipvlan
@@ -336,7 +279,6 @@ services:
         kmod-ixgbevf
         kmod-keys-encrypted
         kmod-keys-trusted
-        kmod-kvm-amd
         kmod-kvm-intel
         kmod-kvm-x86
         kmod-l2tp
@@ -356,7 +298,6 @@ services:
         kmod-lib-zlib-inflate
         kmod-lib-zstd
         kmod-lib80211
-        kmod-libertas-usb
         kmod-libipw
         kmod-libphy
         kmod-libsas
@@ -372,60 +313,25 @@ services:
         kmod-mlx5-core
         kmod-mmc
         kmod-mppe
-        kmod-mt76
-        kmod-mt76-connac
-        kmod-mt76-core
-        kmod-mt76-sdio
-        kmod-mt76-usb
-        kmod-mt7601u
-        kmod-mt7603
-        kmod-mt7615-common
-        kmod-mt7615-firmware
-        kmod-mt7615e
-        kmod-mt7663-firmware-ap
-        kmod-mt7663-usb-sdio
-        kmod-mt7663u
-        kmod-mt76x0-common
-        kmod-mt76x02-common
-        kmod-mt76x02-usb
-        kmod-mt76x0e
-        kmod-mt76x0u
-        kmod-mt76x2
-        kmod-mt76x2-common
-        kmod-mt76x2u
-        kmod-mt7915e
-        kmod-mt7921-common
-        kmod-mt7921e
-        kmod-mt7921s
-        kmod-mt7921u
         kmod-mvsas
-        kmod-mwl8k
         kmod-natsemi
         kmod-nbd
         kmod-ne2k-pci
-        kmod-net-prism54
         kmod-nf-conntrack
-        kmod-nf-conntrack-netlink
         kmod-nf-conntrack6
         kmod-nf-flow
         kmod-nf-ipt
         kmod-nf-ipt6
-        kmod-nf-ipvs
         kmod-nf-log
         kmod-nf-log6
         kmod-nf-nat
-        kmod-nf-nat6
-        kmod-nf-nathelper
-        kmod-nf-nathelper-extra
         kmod-nf-reject
         kmod-nf-reject6
         kmod-nfnetlink
-        kmod-nft-bridge
         kmod-nft-compat
         kmod-nft-core
         kmod-nft-fib
         kmod-nft-nat
-        kmod-nft-netdev
         kmod-nft-offload
         kmod-niu
         kmod-nls-base
@@ -433,12 +339,7 @@ services:
         kmod-nls-iso8859-1
         kmod-nls-utf8
         kmod-oid-registry
-        kmod-owl-loader
-        kmod-p54-common
-        kmod-p54-pci
-        kmod-p54-usb
         kmod-pcnet32
-        kmod-pcspkr
         kmod-phy-ax88796b
         kmod-phy-bcm84881
         kmod-phy-broadcom
@@ -461,35 +362,6 @@ services:
         kmod-r8169
         kmod-random-core
         kmod-regmap-core
-        kmod-rsi91x
-        kmod-rsi91x-usb
-        kmod-rt2400-pci
-        kmod-rt2500-pci
-        kmod-rt2500-usb
-        kmod-rt2800-lib
-        kmod-rt2800-mmio
-        kmod-rt2800-pci
-        kmod-rt2800-usb
-        kmod-rt2x00-lib
-        kmod-rt2x00-mmio
-        kmod-rt2x00-pci
-        kmod-rt2x00-usb
-        kmod-rt61-pci
-        kmod-rt73-usb
-        kmod-rtl8180
-        kmod-rtl8187
-        kmod-rtl8192c-common
-        kmod-rtl8192ce
-        kmod-rtl8192cu
-        kmod-rtl8192de
-        kmod-rtl8192se
-        kmod-rtl8812au-ct
-        kmod-rtl8821ae
-        kmod-rtlwifi
-        kmod-rtlwifi-btcoexist
-        kmod-rtlwifi-pci
-        kmod-rtlwifi-usb
-        kmod-rtw88
         kmod-sched-cake
         kmod-sched-core
         kmod-scsi-cdrom
@@ -506,7 +378,6 @@ services:
         kmod-sky2
         kmod-slhc
         kmod-solos-pci
-        kmod-sound-core
         kmod-spi-bitbang
         kmod-spi-ks8995
         kmod-ssb
@@ -520,7 +391,6 @@ services:
         kmod-switch-rtl8366s
         kmod-switch-rtl8367b
         kmod-tg3
-        kmod-thermal
         kmod-tpm
         kmod-tulip
         kmod-udptunnel4
@@ -654,23 +524,16 @@ services:
         kmod-video-videobuf2
         kmod-vmxnet3
         kmod-vxlan
-        kmod-wil6210
-        kmod-wl12xx
-        kmod-wl18xx
-        kmod-wlcore
-        kmod-zd1211rw
         libacl
         libarchive
         libatomic1
         libattr
-        libavahi-dbus-support
         libblkid1
         libblobmsg-json20220515
         libbz2-1.0
         libc
         libcap
         libcomerr0
-        libdaemon
         libdbus
         libdevmapper
         libertas-usb-firmware
@@ -699,9 +562,7 @@ services:
         libmnl0
         libmount1
         libncurses6
-        libnetfilter-conntrack3
         libnettle8
-        libnfnetlink0
         libnftnl11
         libnl-tiny1
         libopenssl-conf
@@ -713,7 +574,6 @@ services:
         libsmartcols1
         libss2
         libstdcpp6
-        libtirpc
         libubox20220515
         libubus-lua
         libubus20220601
@@ -723,8 +583,6 @@ services:
         libuuid1
         libuv1
         libwebsockets-full
-        libwrap
-        libxml2
         libxtables12
         libzip-gnutls
         libzstd
@@ -759,7 +617,6 @@ services:
         lzmainfo
         mount-utils
         mt7601u-firmware
-        mt7622bt-firmware
         mtd
         musl-fts
         mwl8k-firmware
@@ -781,7 +638,6 @@ services:
         r8152-firmware
         r8169-firmware
         radeon-firmware
-        resolveip
         rpcd
         rpcd-mod-file
         rpcd-mod-iwinfo
@@ -794,24 +650,14 @@ services:
         rt2800-usb-firmware
         rt61-pci-firmware
         rt73-usb-firmware
-        rtl8188eu-firmware
         rtl8192ce-firmware
         rtl8192cu-firmware
         rtl8192de-firmware
-        rtl8192eu-firmware
         rtl8192se-firmware
-        rtl8723au-firmware
-        rtl8723bu-firmware
         rtl8821ae-firmware
-        rtl8822be-firmware
-        rtl8822ce-firmware
-        screen
         sqm-scripts
         tc-tiny
         terminfo
-        ti-3410-firmware
-        ti-5052-firmware
-        tmux
         ttyd
         ubox
         ubus
@@ -827,9 +673,7 @@ services:
         unrar
         unzip
         urandom-seed
-        urngd
         usign
-        uxc
         wil6210-firmware
         wireless-regdb
         wl12xx-firmware
