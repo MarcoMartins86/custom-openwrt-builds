@@ -43,8 +43,6 @@ services:
         aircard-pcmcia-firmware
         alsa-lib
         alsa-ucm-conf
-        alsa-utils
-        alsa-utils-tests
         amd64-microcode
         amdgpu-firmware
         antfs-mount
@@ -66,16 +64,11 @@ services:
         ath10k-firmware-qca99x0
         ath6k-firmware
         ath9k-htc-firmware
-        atop
         attr
         avahi-dbus-daemon
         b43legacy-firmware
         base-files
         bash
-        bc
-        beep
-        bind-libs
-        blkid
         block-mount
         blockd
         bnx2-firmware
@@ -93,21 +86,7 @@ services:
         ca-certificates
         carl9170-firmware
         cgi-io
-        cgroupfs-mount
         chat
-        collectd
-        collectd-mod-cpu
-        collectd-mod-interface
-        collectd-mod-iwinfo
-        collectd-mod-load
-        collectd-mod-memory
-        collectd-mod-network
-        collectd-mod-rrdtool
-        containerd
-        coreutils
-        coreutils-base64
-        coreutils-nohup
-        coreutils-sort
         cypress-firmware-4356-pcie
         cypress-firmware-43570-pcie
         cypress-firmware-4373-usb
@@ -115,31 +94,21 @@ services:
         dbus
         dnslookup
         dnsmasq-full
-        docker
-        docker-compose
-        dockerd
         dropbear
         e100-firmware
         e2fsprogs
         edgeport-firmware
         eip197-mini-firmware
-        f2fs-tools
-        f2fsck
         fdisk
-        fdk-aac
         firewall4
         fstools
-        fstrim
-        fuse-utils
         fwtool
         getrandom
-        glib2
         grub2
         grub2-bios-setup
         grub2-efi
         gzip
         hostapd-common
-        htop
         ibt-firmware
         intel-microcode
         ip6tables-nft
@@ -694,8 +663,6 @@ services:
         kmod-wl18xx
         kmod-wlcore
         kmod-zd1211rw
-        lame
-        lame-lib
         libacl
         libao
         libarchive
@@ -706,38 +673,29 @@ services:
         libavahi-dbus-support
         libblkid1
         libblobmsg-json20220515
-        libbpf20220308
         libbz2-1.0
         libc
         libcap
-        libcap-ng
         libcomerr0
-        libcurl4
         libdaemon
         libdbus
         libdevmapper
         libedit
-        libelf1
         libertas-usb-firmware
         libevdev
-        libevent2-7
         libevent2-core7
         libexpat
         libext2fs2
         libf2fs6
         libfdisk1
-        libffi
         libfuse1
         libgcc1
         libgcrypt
         libgmp10
-        libgnurl
         libgnutls
         libgpg-error
         libiconv-full2
-        libidn2
         libimobiledevice
-        libintl-full8
         libipset13
         libiptext-nft0
         libiptext0
@@ -747,68 +705,47 @@ services:
         libiwinfo20210430
         libjson-c5
         libjson-script20220515
-        libkeyutils1
         libkmod
         libltdl7
         liblua5.1.5
-        liblua5.3-5.3
         liblucihttp-lua
         liblucihttp0
         liblz4-1
         liblzma
         liblzo2
-        libmbim
         libmnl0
         libmount1
         libncurses6
         libnetfilter-conntrack3
-        libnetsnmp
         libnettle8
-        libnetwork
         libnfnetlink0
         libnftnl11
-        libnghttp2-14
         libnl-tiny1
         libopenssl-conf
         libopenssl1.1
         libparted
         libpci
-        libpcre
         libplist
-        libpopt0
         libpthread
-        libqmi
-        libqrtr-glib
         libreadline8
         librrd1
         librt
         libseccomp
-        libsensors5
         libsmartcols1
-        libsodium
         libsqlite3-0
         libss2
-        libssh
-        libssh2-1
         libstdcpp6
-        libstoken
         libsysfs2
-        libtasn1
         libtirpc
         libubox20220515
         libubus-lua
         libubus20220601
-        libuci-lua
         libuci20130104
         libuclient20201210
         libucode20220812
         libudev-zero
-        libunistring
-        liburing
         libusb-1.0-0
         libusbmuxd
-        libusbmuxd-utils
-        libustream-openssl20201210
         libuuid1
         libuv1
         libwebsockets-full
@@ -817,10 +754,8 @@ services:
         libxtables12
         libzip-gnutls
         libzstd
-        linux-atm
         logd
         lsblk
-        lscpu
         lua
         luci
         luci-app-firewall
@@ -848,33 +783,22 @@ services:
         lz4
         lzmadec
         lzmainfo
-        mkf2fs
-        monit
         mount-utils
-        msgpack-c
         mt7601u-firmware
         mt7622bt-firmware
         mtd
         musl-fts
         mwl8k-firmware
         nano-full
-        netdata
         netifd
-        nfs-utils
-        nfs-utils-libs
         nftables-json
-        ntfs-3g
-        ntfs-3g-utils
         ntpclient
-        openssl-util
         openwrt-keyring
         opkg
         p54-pci-firmware
         p54-usb-firmware
         parted
         partx-utils
-        pciids
-        pciutils
         pigz
         prism54-firmware
         procd
@@ -883,7 +807,6 @@ services:
         r8152-firmware
         r8169-firmware
         radeon-firmware
-        resize2fs
         resolveip
         rpcbind
         rpcd
@@ -893,7 +816,6 @@ services:
         rpcd-mod-rpcsys
         rpcd-mod-rrdns
         rpcd-mod-ucode
-        rrdtool1
         rs9113-firmware
         rt2800-pci-firmware
         rt2800-usb-firmware
@@ -910,24 +832,13 @@ services:
         rtl8821ae-firmware
         rtl8822be-firmware
         rtl8822ce-firmware
-        runc
         screen
-        shairplay
-        smartmontools
-        smartmontools-drivedb
-        sqlite3-cli
         sqm-scripts
-        squashfs-tools-mksquashfs
-        squashfs-tools-unsquashfs
-        swap-utils
-        sysfsutils
         tc-tiny
         terminfo
         ti-3410-firmware
         ti-5052-firmware
-        tini
         tmux
-        tree
         ttyd
         ubox
         ubus
@@ -944,13 +855,8 @@ services:
         unzip
         urandom-seed
         urngd
-        usb-modeswitch
-        usbids
-        usbmuxd
-        usbutils
         usign
         uxc
-        whereis
         wil6210-firmware
         wireless-regdb
         wl12xx-firmware
