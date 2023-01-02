@@ -41,8 +41,6 @@ services:
         -libustream-wolfssl
         acl
         aircard-pcmcia-firmware
-        alsa-lib
-        alsa-ucm-conf
         amd64-microcode
         amdgpu-firmware
         antfs-mount
@@ -65,7 +63,6 @@ services:
         ath6k-firmware
         ath9k-htc-firmware
         attr
-        avahi-dbus-daemon
         b43legacy-firmware
         base-files
         bash
@@ -86,7 +83,6 @@ services:
         ca-certificates
         carl9170-firmware
         cgi-io
-        chat
         cypress-firmware-4356-pcie
         cypress-firmware-43570-pcie
         cypress-firmware-4373-usb
@@ -664,12 +660,9 @@ services:
         kmod-wlcore
         kmod-zd1211rw
         libacl
-        libao
         libarchive
         libatomic1
         libattr
-        libavahi-client
-        libavahi-compat-libdnssd
         libavahi-dbus-support
         libblkid1
         libblobmsg-json20220515
@@ -680,23 +673,15 @@ services:
         libdaemon
         libdbus
         libdevmapper
-        libedit
         libertas-usb-firmware
-        libevdev
         libevent2-core7
         libexpat
         libext2fs2
-        libf2fs6
         libfdisk1
-        libfuse1
         libgcc1
-        libgcrypt
         libgmp10
         libgnutls
-        libgpg-error
         libiconv-full2
-        libimobiledevice
-        libipset13
         libiptext-nft0
         libiptext0
         libiptext6-0
@@ -705,8 +690,6 @@ services:
         libiwinfo20210430
         libjson-c5
         libjson-script20220515
-        libkmod
-        libltdl7
         liblua5.1.5
         liblucihttp-lua
         liblucihttp0
@@ -724,18 +707,12 @@ services:
         libopenssl-conf
         libopenssl1.1
         libparted
-        libpci
-        libplist
         libpthread
         libreadline8
-        librrd1
         librt
-        libseccomp
         libsmartcols1
-        libsqlite3-0
         libss2
         libstdcpp6
-        libsysfs2
         libtirpc
         libubox20220515
         libubus-lua
@@ -743,9 +720,6 @@ services:
         libuci20130104
         libuclient20201210
         libucode20220812
-        libudev-zero
-        libusb-1.0-0
-        libusbmuxd
         libuuid1
         libuv1
         libwebsockets-full
@@ -808,7 +782,6 @@ services:
         r8169-firmware
         radeon-firmware
         resolveip
-        rpcbind
         rpcd
         rpcd-mod-file
         rpcd-mod-iwinfo
@@ -861,7 +834,6 @@ services:
         wireless-regdb
         wl12xx-firmware
         wl18xx-firmware
-        wwan
         xtables-nft
         xz
         xz-utils
