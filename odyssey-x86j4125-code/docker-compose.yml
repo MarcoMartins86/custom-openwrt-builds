@@ -49,8 +49,6 @@ services:
         amdgpu-firmware
         antfs-mount
         ar3k-firmware
-        atftp
-        atftpd
         ath10k-board-qca4019
         ath10k-board-qca9377
         ath10k-board-qca9887
@@ -76,9 +74,6 @@ services:
         bash
         bc
         beep
-        bind-client
-        bind-dig
-        bind-host
         bind-libs
         blkid
         block-mount
@@ -108,21 +103,16 @@ services:
         collectd-mod-memory
         collectd-mod-network
         collectd-mod-rrdtool
-        comgt
-        comgt-ncm
         containerd
         coreutils
         coreutils-base64
         coreutils-nohup
         coreutils-sort
-        curl
         cypress-firmware-4356-pcie
         cypress-firmware-43570-pcie
         cypress-firmware-4373-usb
         cypress-firmware-54591-pcie
         dbus
-        ddns-scripts
-        ddns-scripts-services
         dnslookup
         dnsmasq-full
         docker
@@ -133,7 +123,6 @@ services:
         e2fsprogs
         edgeport-firmware
         eip197-mini-firmware
-        ethtool-full
         f2fs-tools
         f2fsck
         fdisk
@@ -145,21 +134,15 @@ services:
         fwtool
         getrandom
         glib2
-        gnurl
         grub2
         grub2-bios-setup
         grub2-efi
         gzip
-        halog
-        haproxy
         hostapd-common
         htop
         ibt-firmware
         intel-microcode
         ip6tables-nft
-        iperf
-        iperf3-ssl
-        ipset
         iptables-mod-extra
         iptables-mod-ipopt
         iptables-nft
@@ -877,18 +860,12 @@ services:
         nano-full
         netdata
         netifd
-        nfs-kernel-server
-        nfs-kernel-server-utils
         nfs-utils
         nfs-utils-libs
         nftables-json
         ntfs-3g
         ntfs-3g-utils
         ntpclient
-        odhcp6c
-        odhcpd-ipv6only
-        openssh-sftp-client
-        openssh-sftp-server
         openssl-util
         openwrt-keyring
         opkg
@@ -899,28 +876,13 @@ services:
         pciids
         pciutils
         pigz
-        ppp
-        ppp-mod-passwordfd
-        ppp-mod-pppoa
-        ppp-mod-pppoe
-        ppp-mod-pppol2tp
-        ppp-mod-pptp
-        ppp-mod-radius
-        pppoe-discovery
-        pppossh
-        pppstats
         prism54-firmware
         procd
         procd-seccomp
         procd-ujail
-        proto-bonding
         r8152-firmware
         r8169-firmware
         radeon-firmware
-        rclone
-        rclone-config
-        rclone-ng
-        rclone-webui-react
         resize2fs
         resolveip
         rpcbind
@@ -933,8 +895,6 @@ services:
         rpcd-mod-ucode
         rrdtool1
         rs9113-firmware
-        rsync
-        rsyncd
         rt2800-pci-firmware
         rt2800-usb-firmware
         rt61-pci-firmware
@@ -951,14 +911,10 @@ services:
         rtl8822be-firmware
         rtl8822ce-firmware
         runc
-        samba4-libs
-        samba4-server
         screen
         shairplay
-        smartdns
         smartmontools
         smartmontools-drivedb
-        snmpd
         sqlite3-cli
         sqm-scripts
         squashfs-tools-mksquashfs
@@ -970,7 +926,6 @@ services:
         ti-3410-firmware
         ti-5052-firmware
         tini
-        tmate
         tmux
         tree
         ttyd
@@ -985,10 +940,8 @@ services:
         ucode-mod-uci
         uhttpd
         uhttpd-mod-ubus
-        umbim
         unrar
         unzip
-        uqmi
         urandom-seed
         urngd
         usb-modeswitch
@@ -997,17 +950,11 @@ services:
         usbutils
         usign
         uxc
-        vsftpd-tls
-        wget-nossl
-        wget-ssl
         whereis
-        wifischedule
         wil6210-firmware
         wireless-regdb
         wl12xx-firmware
         wl18xx-firmware
-        wpad
-        wsdd2
         wwan
         xtables-nft
         xz
