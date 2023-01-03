@@ -35,6 +35,7 @@ RUN ./scripts/feeds install -a
 COPY ./odyssey-x86j4125-code/config/config /root/Desktop/openwrt/.config
 COPY ./odyssey-x86j4125-code/config/kconfig /root/Desktop/openwrt/target/linux/x86/config-5.10
 COPY ./odyssey-x86j4125-code/files/ /root/Desktop/openwrt/files/
+# Firmware from here https://github.com/pkshih/linux-firmware
 COPY ./odyssey-x86j4125-code/kernel_firmware/ /root/Desktop/openwrt/kernel_firmware/
 
 # https://openwrt.org/docs/guide-developer/toolchain/use-buildsystem
