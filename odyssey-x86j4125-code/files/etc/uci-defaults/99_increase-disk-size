@@ -1,6 +1,8 @@
 #!/bin/sh
 
 # Script from https://openwrt.org/docs/guide-user/installation/openwrt_x86#resizing_partitions
+# https://openwrt.org/docs/guide-user/installation/openwrt_x86#update_grub
+# Update Grub
 
 BOOT="$(sed -n -e "\|\s/boot\s.*$|{s///p;q}" /etc/mtab)"
 DISK="${BOOT%%[0-9]*}"
@@ -14,5 +16,17 @@ PART="$((${BOOT##*[^0-9]}+1))"
 ROOT="${DISK}${PART}"
 UUID="$(lsblk -n -o PARTUUID ${ROOT})"
 sed -i -r -e "s|(PARTUUID=)\S+|\1${UUID}|g" /boot/grub/grub.cfg
+
+# Script from https://openwrt.org/docs/guide-user/installation/openwrt_x86#resizing_ext4_rootfs
+# Resize Ext4 rootfs for ext4-combined.img.gz
+
+BOOT="$(sed -n -e "\|\s/boot\s.*$|{s///p;q}" /etc/mtab)"
+PART="${BOOT##*[^0-9]}"
+DISK="${BOOT%${PART}}"
+ROOT="${DISK}$((PART+1))"
+LOOP="$(losetup -f)"
+losetup ${LOOP} ${ROOT}
+resize2fs -f ${LOOP}
+reboot
 
 exit 0

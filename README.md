@@ -26,11 +26,13 @@
 * Previous point modified kconfig file, manually discard changes using a merge program, otherwise some options will be asked during compilation. Don't use git to discard the changes, or image will not boot, I think that is due to the fact file date would be restored also. (TODO: investigate if there is some kind of defconfig command and if so if running last step is not needed)
 * Run `make -j $(nproc) defconfig download clean world` to build the image. Output will be available at `[repo]/odyssey-x86j4125-code/binaries/code/64`
 * Copy OpenWRT to Odyssey with `scp [repo]/odyssey-x86j4125-code/binaries/code/64/openwrt-x86-64-generic-ext4-combined-efi.img.gz root@192.168.2.1:~/openwrt.img.gz`. Change login user if not using the default one.
+* Use a boot linux pen on Odissey (check tutorials on how to use the image itself), for doing the middle man to install the image into the Odissey disk itself.
 * Then access Odissey `ssh root@192.168.2.1`, again change credentials if not using default, if needed clear the old certificate `ssh-keygen -R 192.168.2.1`, and do:
   * `gzip -d openwrt.img.gz`
   * `dd if=openwrt.img of=/dev/sda`
   * `poweroff` to shutdown and manually boot or `reboot`
   * At power on press `F7` if boot menu is needed to choose an option
+  * First time the image runs, it will reboot itself due to a script for resizing the disk to use all remaing free disk space.
 
 
 
