@@ -1,5 +1,17 @@
 # https://openwrt.org/docs/guide-developer/uci-defaults#integrating_custom_settings
+# https://openwrt.org/docs/guide-user/base-system/dhcp_configuration#replacing_dnsmasq_with_odhcpd_and_unbound
+# https://github.com/openwrt/packages/blob/master/net/unbound/files/README.md
 uci -q batch << EOI
 set network.lan.ipaddr='192.168.2.1'
 commit network
+set unbound.@unbound[0].add_local_fqdn="3"
+set unbound.@unbound[0].add_wan_fqdn="1"
+set unbound.@unbound[0].dhcp_link="odhcpd"
+set unbound.@unbound[0].dhcp4_slaac6="1"
+set unbound.@unbound[0].unbound_control="1"
+commit unbound
+set dhcp.odhcpd.leasetrigger="/usr/lib/unbound/odhcpd.sh"
+commit dhcp
+uci set adblock.global.adb_triggerdelay=60
+commit adblock
 EOI
