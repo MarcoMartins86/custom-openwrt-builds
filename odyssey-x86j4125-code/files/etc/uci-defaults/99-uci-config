@@ -12,6 +12,9 @@ set unbound.@unbound[0].unbound_control="1"
 commit unbound
 set dhcp.odhcpd.leasetrigger="/usr/lib/unbound/odhcpd.sh"
 commit dhcp
-uci set adblock.global.adb_triggerdelay=60
+set adblock.global.adb_triggerdelay="60"
 commit adblock
+set nlbwmon.@nlbwmon[0].netlink_buffer_size="1048576"
+set nlbwmon.@nlbwmon[0].refresh_interval="10s"
+commit nlbwmon
 EOI

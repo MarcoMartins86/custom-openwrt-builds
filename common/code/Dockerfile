@@ -38,18 +38,18 @@ COPY ./odyssey-x86j4125-code/files/ /root/Desktop/openwrt/files/
 # Firmware from here https://github.com/pkshih/linux-firmware
 COPY ./odyssey-x86j4125-code/kernel_firmware/ /root/Desktop/openwrt/kernel_firmware/
 
-# https://openwrt.org/docs/guide-developer/toolchain/use-buildsystem
-# Let's compile to cache this step that takes much time
-RUN make -j $(nproc) defconfig download clean world
-
-# Copy the binary to another folder so then we make a link in the docker-compose.yml 
-RUN mkdir -p /root/Desktop/openwrt/.bin/targets/x86 && \ 
-    cp -r /root/Desktop/openwrt/bin/targets/x86/64 /root/Desktop/openwrt/.bin/targets/x86
-	
-# Extract the imagebuilder to Desktop
-RUN tar -xJf /root/Desktop/openwrt/bin/targets/x86/64/openwrt-imagebuilder-x86-64.Linux-x86_64.tar.xz && \
-	mv -v openwrt-imagebuilder-x86-64.Linux-x86_64 /root/Desktop/openwrt-imagebuilder
-
-# Write a script for building imagebuilder
-RUN echo $'#!/bin/sh \n\
-make clean image FILES="files" PACKAGES="${PACKAGES}"' > /root/Desktop/openwrt-imagebuilder/build.sh
+## https://openwrt.org/docs/guide-developer/toolchain/use-buildsystem
+## Let's compile to cache this step that takes much time
+#RUN make -j $(nproc) defconfig download clean world
+#
+## Copy the binary to another folder so then we make a link in the docker-compose.yml 
+#RUN mkdir -p /root/Desktop/openwrt/.bin/targets/x86 && \ 
+#    cp -r /root/Desktop/openwrt/bin/targets/x86/64 /root/Desktop/openwrt/.bin/targets/x86
+#	
+## Extract the imagebuilder to Desktop
+#RUN tar -xJf /root/Desktop/openwrt/bin/targets/x86/64/openwrt-imagebuilder-x86-64.Linux-x86_64.tar.xz && \
+#	mv -v openwrt-imagebuilder-x86-64.Linux-x86_64 /root/Desktop/openwrt-imagebuilder
+#
+## Write a script for building imagebuilder
+#RUN echo $'#!/bin/sh \n\
+#make clean image FILES="files" PACKAGES="${PACKAGES}"' > /root/Desktop/openwrt-imagebuilder/build.sh

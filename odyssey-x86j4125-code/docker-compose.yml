@@ -26,14 +26,20 @@ services:
       - /bin/sh
       - -c
       - |
-          sed -i 's/\r//g' /root/openwrt_files/etc/uci-defaults/99_increase-disk-size
-          sed -i 's/\r//g' /root/openwrt_files/etc/uci-defaults/99_uci-config
+          # Convert /r/n (Windows) into /n (Unix)
+          sed -i 's/\r//g' /root/openwrt_files/etc/uci-defaults/99-increase-disk-size
+          sed -i 's/\r//g' /root/openwrt_files/etc/uci-defaults/99-uci-config
+          sed -i 's/\r//g' /root/openwrt_files/etc/sysctl.d/99-nlbwmon_fix.conf
+          # Remove files so we can link them to the outside
           rm /root/Desktop/openwrt/.config
           rm /root/Desktop/openwrt/target/linux/x86/config-5.10
+          rm -r /root/Desktop/openwrt/files 
+          # Create links so files are updated with outside content
           ln -s /root/openwrt_config/config /root/Desktop/openwrt/.config
           ln -s /root/openwrt_config/kconfig /root/Desktop/openwrt/target/linux/x86/config-5.10
+          ln -s -T /root/openwrt_files /root/Desktop/openwrt/files
           ln -s -T /root/openwrt_files /root/Desktop/openwrt-imagebuilder/files
-          cp -ru /root/Desktop/openwrt/.bin/targets/x86/64 /root/Desktop/openwrt/bin/targets/x86
+          #cp -ru /root/Desktop/openwrt/.bin/targets/x86/64 /root/Desktop/openwrt/bin/targets/x86
           /startup.sh
     environment:
       # To use with the compiled image builder, can't use the one on openwrt binary repo since it contains a kernel that will not work
