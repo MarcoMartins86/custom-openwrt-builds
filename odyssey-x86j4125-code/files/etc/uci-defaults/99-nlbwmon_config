@@ -1,0 +1,6 @@
+# https://forum.openwrt.org/t/is-there-an-int-overflow-in-nlbwmon/104873/11
+uci -q batch << EOI
+set nlbwmon.@nlbwmon[0].netlink_buffer_size="1048576"
+set nlbwmon.@nlbwmon[0].refresh_interval="10s"
+commit nlbwmon
+EOI

@@ -27,9 +27,13 @@ services:
       - -c
       - |
           # Convert /r/n (Windows) into /n (Unix)
-          sed -i 's/\r//g' /root/openwrt_files/etc/uci-defaults/99-increase-disk-size
-          sed -i 's/\r//g' /root/openwrt_files/etc/uci-defaults/99-uci-config
           sed -i 's/\r//g' /root/openwrt_files/etc/sysctl.d/99-nlbwmon_fix.conf
+          sed -i 's/\r//g' /root/openwrt_files/etc/uci-defaults/99-adblock_config
+          sed -i 's/\r//g' /root/openwrt_files/etc/uci-defaults/99-increase_disk_size
+          sed -i 's/\r//g' /root/openwrt_files/etc/uci-defaults/99-irqbalance_config
+          sed -i 's/\r//g' /root/openwrt_files/etc/uci-defaults/99-nlbwmon_config
+          sed -i 's/\r//g' /root/openwrt_files/etc/uci-defaults/99-uci_config
+          sed -i 's/\r//g' /root/openwrt_files/etc/uci-defaults/99-unbound_config
           # Remove files so we can link them to the outside
           rm /root/Desktop/openwrt/.config
           rm /root/Desktop/openwrt/target/linux/x86/config-5.10
