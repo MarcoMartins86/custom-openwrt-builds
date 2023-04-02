@@ -1,6 +1,6 @@
 # https://github.com/openwrt/packages/blob/master/net/adblock/files/README.md
 uci -q batch << EOI
-set adblock.global.adb_triggerdelay="60"
+set adblock.global.adb_triggerdelay="120"
 add_list adblock.global.adb_sources="adguard_tracking"
 add_list adblock.global.adb_sources="android_tracking"
 add_list adblock.global.adb_sources="andryou"
