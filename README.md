@@ -147,5 +147,10 @@ the root partition grow later without moving the data.
   it; pick another in LuCI under System → System → Language and Style. Argon's login page
   keeps a local background; its online wallpapers can be switched on under System → Argon
   Config.
+- **DNS root keys**: `files/etc/unbound/root.key` holds the keys unbound trusts for DNSSEC,
+  taken from [IANA](https://data.iana.org/root-anchors/root-anchors.xml). The copy in
+  OpenWrt's package lacks the key the root zone is signed with since 11 October 2026, and
+  with that copy every lookup fails as soon as the DNS server restarts. When the root key
+  changes again, add its line here.
 - **A new OpenWrt release** means changing `OPENWRT_VERSION` in `.env`, building, running
   the smoke test and flashing.
