@@ -5,12 +5,15 @@
 if [ -s /etc/ddns.env ]; then
 	. /etc/ddns.env
 	# The WAN port sits behind the modem and only has a private address, so the
-	# public one is asked from outside.
+	# public one is asked from outside. "use_ipv6" has to be spelled out: without
+	# it, LuCI's dialog for this service hides the fields below and removes them
+	# when the dialog is saved.
 	uci -q batch << EOI
 delete ddns.myddns_ipv4
 delete ddns.myddns_ipv6
 set ddns.home=service
 set ddns.home.enabled="1"
+set ddns.home.use_ipv6="0"
 set ddns.home.service_name="duckdns.org"
 set ddns.home.lookup_host="${DDNS_HOST}"
 set ddns.home.domain="${DDNS_HOST%%.*}"
@@ -21,6 +24,7 @@ set ddns.home.cacert="/etc/ssl/certs/ca-certificates.crt"
 set ddns.home.interface="wan"
 set ddns.home.ip_source="web"
 set ddns.home.ip_url="https://checkip.amazonaws.com"
+set ddns.home.use_syslog="2"
 commit ddns
 EOI
 	# Adblock's lists block address lookup services like the one above, since

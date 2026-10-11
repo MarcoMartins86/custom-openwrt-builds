@@ -152,5 +152,11 @@ the root partition grow later without moving the data.
   OpenWrt's package lacks the key the root zone is signed with since 11 October 2026, and
   with that copy every lookup fails as soon as the DNS server restarts. When the root key
   changes again, add its line here.
+- **Settings LuCI adds by itself**: LuCI stores some defaults only when a page or dialog is
+  saved, and they then appear as changes nobody asked for. `99-zy_luci_defaults` writes them
+  beforehand, without changing how the router behaves. Two settings are more than cosmetic
+  and sit in the scripts of their services: without `enabled` in the unbound configuration,
+  saving LuCI's page for it stops the DNS server, and without `use_ipv6` in a dynamic DNS
+  service, saving its dialog removes the service's settings.
 - **A new OpenWrt release** means changing `OPENWRT_VERSION` in `.env`, building, running
   the smoke test and flashing.

@@ -1,6 +1,9 @@
 # https://openwrt.org/docs/guide-user/base-system/dhcp_configuration#replacing_dnsmasq_with_odhcpd_and_unbound
 # https://github.com/openwrt/packages/blob/master/net/unbound/files/README.md
+# "enabled" has to be spelled out: without it, LuCI's page for this service
+# shows it switched off and stops the DNS server when the page is saved.
 uci -q batch << EOI
+set unbound.@unbound[0].enabled="1"
 set unbound.@unbound[0].add_local_fqdn="3"
 set unbound.@unbound[0].add_wan_fqdn="1"
 set unbound.@unbound[0].dhcp_link="odhcpd"

@@ -1,6 +1,7 @@
 # https://openwrt.org/docs/guide-developer/uci-defaults#integrating_custom_settings
 uci -q batch << EOI
-set network.lan.ipaddr='192.168.2.1/24'
+delete network.lan.ipaddr
+add_list network.lan.ipaddr='192.168.2.1/24'
 commit network
 set system.@system[0].hostname='odyssey'
 set system.@system[0].zonename='Europe/Lisbon'
