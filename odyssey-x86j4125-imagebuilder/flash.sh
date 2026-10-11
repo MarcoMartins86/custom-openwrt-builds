@@ -74,8 +74,19 @@ if [ -z "${YES}" ]; then
 	[ "${answer}" = "y" ] || { echo "not flashed"; exit 1; }
 fi
 
+# Containers get time to shut down first: the upgrade ends whatever is still
+# running after four seconds. Stopping the Docker service rather than the
+# containers leaves them set to start again after the flash.
 # The connection drops when the upgrade starts, so a failure here is expected
-router 'sysupgrade -v -f /tmp/identity.tar.gz /tmp/firmware.img.gz' || true
+router '
+if [ -x /etc/init.d/dockerd ] && /etc/init.d/dockerd running; then
+	PIDS="$(docker ps -q | xargs -r docker inspect -f "{{.State.Pid}}")"
+	/etc/init.d/dockerd stop
+	i=0
+	while [ $i -lt 60 ] && [ -n "$(for p in $PIDS; do [ -d /proc/$p ] && echo $p; done)" ]; do sleep 1; i=$((i+1)); done
+	echo "Containers stopped after ${i}s"
+fi
+sysupgrade -v -f /tmp/identity.tar.gz /tmp/firmware.img.gz' || true
 
 python3 "${HERE}/wait-router.py" --release "${OPENWRT_VERSION}" --host "${ROUTER}" --port "${PORT}" \
 	${KEY:+--key "${KEY}"} ${KNOWN_HOSTS:+--known-hosts "${KNOWN_HOSTS}"}

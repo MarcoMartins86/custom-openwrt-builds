@@ -100,8 +100,10 @@ For a router already running this image:
 ./flash.sh
 ```
 
-It uploads the image, checks it, and upgrades the router over SSH. The address, SSH key and
-known-hosts file can be set in `private/flash.env` as `ROUTER`, `KEY` and `KNOWN_HOSTS`.
+It uploads the image, checks it, and upgrades the router over SSH. Docker is stopped first,
+so that containers shut down cleanly; they start again by themselves after the flash. The
+address, SSH key and known-hosts file can be set in `private/flash.env` as `ROUTER`, `KEY`
+and `KNOWN_HOSTS`.
 
 What a flash keeps and what it replaces:
 
