@@ -1,0 +1,5 @@
+# https://openwrt.org/docs/guide-user/services/irqbalance
+uci -q batch << EOI
+set irqbalance.@irqbalance[0].enabled="1"
+commit irqbalance
+EOI

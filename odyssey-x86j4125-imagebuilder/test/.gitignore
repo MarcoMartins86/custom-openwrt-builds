@@ -1,0 +1,7 @@
+# what a test run leaves behind
+disk.img
+vars.fd
+qemu.pid
+*.sock
+*.log
+dhcp.out

@@ -1,0 +1,14 @@
+# https://github.com/openwrt/packages/blob/master/net/banip/files/README.md
+# A conservative start: three inbound attacker lists and two high-confidence
+# lists that also apply outbound. Never add "bogon" while the WAN side is a
+# private network behind the ISP modem.
+uci -q batch << EOI
+set banip.global.ban_enabled="1"
+delete banip.global.ban_feed
+add_list banip.global.ban_feed="cinsscore"
+add_list banip.global.ban_feed="debl"
+add_list banip.global.ban_feed="dshield"
+add_list banip.global.ban_feed="feodo"
+add_list banip.global.ban_feed="threat"
+commit banip
+EOI

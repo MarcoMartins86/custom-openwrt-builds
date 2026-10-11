@@ -1,0 +1,14 @@
+services:
+  imagebuilder:
+    # OpenWrt's own ImageBuilder container, https://github.com/openwrt/docker
+    # The release is pinned in .env
+    image: ghcr.io/openwrt/imagebuilder:x86-64-v${OPENWRT_VERSION}
+    # Docker's default network is enough, and a firewall that only knows that one
+    # (as on the router this builds for) would cut a per-project network off
+    network_mode: bridge
+    volumes:
+      - type: bind
+        source: .
+        target: /work
+    # Check more info https://openwrt.org/docs/guide-user/additional-software/imagebuilder
+    command: sh /work/build.sh
