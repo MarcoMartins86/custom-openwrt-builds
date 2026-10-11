@@ -3,7 +3,8 @@
 # Flashes the built image to a running router over SSH and waits for it to come back.
 #
 # The router keeps its identity across the flash: root password, SSH host keys,
-# HTTPS certificate, and whatever the first-boot scripts keep under /etc/odyssey.
+# HTTPS certificate, the VPN key with the devices allowed to connect, and whatever
+# the first-boot scripts keep under /etc/odyssey.
 # Its configuration is not kept; the first-boot scripts regenerate it. The data
 # partition is left alone.
 # https://openwrt.org/docs/guide-user/installation/generic.sysupgrade
@@ -47,6 +48,17 @@ router '
 mkdir -p /etc/odyssey
 grep "^root:" /etc/shadow | cut -d: -f2 > /etc/odyssey/root.hash
 chmod 600 /etc/odyssey/root.hash
+# The VPN key and its devices live in the network configuration. Save them where
+# the first boot looks for them.
+if uci -q get network.wg0.private_key > /dev/null; then
+	mkdir -p /etc/wireguard
+	chmod 700 /etc/wireguard
+	(
+		umask 077
+		uci -q get network.wg0.private_key > /etc/wireguard/server.key
+		uci export network | awk "/^config /{keep=(\$2==\"wireguard_wg0\")} keep" > /etc/wireguard/peers
+	)
+fi
 KEEP=""
 for f in etc/odyssey etc/dropbear/dropbear_ed25519_host_key etc/dropbear/dropbear_rsa_host_key \
 	etc/uhttpd.crt etc/uhttpd.key etc/wireguard; do
@@ -62,8 +74,19 @@ if [ -z "${YES}" ]; then
 	[ "${answer}" = "y" ] || { echo "not flashed"; exit 1; }
 fi
 
+# Containers get time to shut down first: the upgrade ends whatever is still
+# running after four seconds. Stopping the Docker service rather than the
+# containers leaves them set to start again after the flash.
 # The connection drops when the upgrade starts, so a failure here is expected
-router 'sysupgrade -v -f /tmp/identity.tar.gz /tmp/firmware.img.gz' || true
+router '
+if [ -x /etc/init.d/dockerd ] && /etc/init.d/dockerd running; then
+	PIDS="$(docker ps -q | xargs -r docker inspect -f "{{.State.Pid}}")"
+	/etc/init.d/dockerd stop
+	i=0
+	while [ $i -lt 60 ] && [ -n "$(for p in $PIDS; do [ -d /proc/$p ] && echo $p; done)" ]; do sleep 1; i=$((i+1)); done
+	echo "Containers stopped after ${i}s"
+fi
+sysupgrade -v -f /tmp/identity.tar.gz /tmp/firmware.img.gz' || true
 
 python3 "${HERE}/wait-router.py" --release "${OPENWRT_VERSION}" --host "${ROUTER}" --port "${PORT}" \
 	${KEY:+--key "${KEY}"} ${KNOWN_HOSTS:+--known-hosts "${KNOWN_HOSTS}"}

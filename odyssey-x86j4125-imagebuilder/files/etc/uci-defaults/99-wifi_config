@@ -14,6 +14,7 @@ config wifi-device 'radio0'
 	option band '2g'
 	option channel '6'
 	option htmode 'HT20'
+	option cell_density '0'
 
 config wifi-iface 'default_radio0'
 	option device 'radio0'

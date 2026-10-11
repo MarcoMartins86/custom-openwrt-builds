@@ -2,9 +2,12 @@
 uci -q batch << EOI
 set luci_statistics.collectd_rrdtool.CacheTimeout="300"
 set luci_statistics.collectd_rrdtool.CacheFlush="3600"
-set luci_statistics.collectd_interface.Interfaces="br-lan eth1"
+delete luci_statistics.collectd_interface.Interfaces
+add_list luci_statistics.collectd_interface.Interfaces="br-lan"
+add_list luci_statistics.collectd_interface.Interfaces="eth1"
 set luci_statistics.collectd_ping.enable="1"
-set luci_statistics.collectd_ping.Hosts="1.1.1.1"
+delete luci_statistics.collectd_ping.Hosts
+add_list luci_statistics.collectd_ping.Hosts="1.1.1.1"
 set luci_statistics.collectd_thermal.enable="1"
 set luci_statistics.collectd_sensors.enable="1"
 set luci_statistics.collectd_conntrack.enable="1"
@@ -13,10 +16,13 @@ set luci_statistics.collectd_cpufreq.enable="1"
 set luci_statistics.collectd_df.enable="1"
 delete luci_statistics.collectd_df.Devices
 delete luci_statistics.collectd_df.FSTypes
-set luci_statistics.collectd_df.MountPoints="/ /mnt/data"
+delete luci_statistics.collectd_df.MountPoints
+add_list luci_statistics.collectd_df.MountPoints="/"
+add_list luci_statistics.collectd_df.MountPoints="/mnt/data"
 set luci_statistics.collectd_disk.enable="1"
-set luci_statistics.collectd_disk.Disks="sda"
-set luci_statistics.collectd_iwinfo.enable="0"
+delete luci_statistics.collectd_disk.Disks
+add_list luci_statistics.collectd_disk.Disks="sda"
+delete luci_statistics.collectd_iwinfo.enable
 commit luci_statistics
 EOI
 # History goes to the data partition so it outlives reboots and reflashes

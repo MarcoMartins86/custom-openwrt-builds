@@ -1,0 +1,118 @@
+# LuCI stores some settings only once a page or dialog has been saved: values it
+# shows as defaults, old option names it renames, and options it removes because
+# they equal its defaults. They then appear as unrequested changes next to the
+# one that was meant. Everything here is what LuCI would store by itself, or the
+# value already in effect written out, so the router behaves as before and LuCI
+# is left with nothing to add. Found by saving every page and dialog of LuCI
+# unchanged in the test VM. Runs after the scripts that create the sections.
+. /lib/functions.sh
+
+# Network → Interfaces: the page itself, then each interface's dialog
+luci_interface() {
+	[ "$1" = loopback ] || uci -q set network."$1".multipath="off"
+}
+config_load network
+config_foreach luci_interface interface
+uci -q batch << EOI
+set network.globals.packet_steering="1"
+set network.wan.sendclientid="auto"
+set network.wan6.reqaddress="try"
+set network.wan6.reqprefix="auto"
+set network.wan6.sendclientid="auto"
+set network.wan6.norelease="0"
+delete dhcp.lan.ra_slaac
+set dhcp.lan.ipv6_only_preferred="0"
+set dhcp.lan.ra_preference="medium"
+delete dhcp.lan.domain
+add_list dhcp.lan.domain="lan"
+EOI
+
+# Network → Firewall: the old name of the SYN flood switch, and every rule
+luci_rule() {
+	uci -q get firewall."$1".enabled > /dev/null || uci -q set firewall."$1".enabled="1"
+}
+config_load firewall
+config_foreach luci_rule rule
+uci -q batch << EOI
+delete firewall.@defaults[0].syn_flood
+set firewall.@defaults[0].synflood_protect="1"
+EOI
+
+# System → System and System → Administration
+uci -q batch << EOI
+delete system.ntp.enabled
+delete system.ntp.enable_server
+set system.@system[0].log_proto="udp"
+set system.@system[0].conloglevel="7"
+set system.@system[0].cronloglevel="7"
+delete dropbear.main.enable
+EOI
+
+# Services
+uci -q batch << EOI
+delete unbound.@unbound[0].validator_ntp
+delete unbound.@unbound[0].dns64_prefix
+delete unbound.@unbound[0].query_minimize
+delete unbound.@unbound[0].query_min_strict
+delete ddns.global.upd_privateip
+set ddns.global.ddns_rundir="/var/run/ddns"
+set ddns.global.ddns_logdir="/var/log/ddns"
+delete upnpd.config.enable_upnp
+delete upnpd.config.enable_natpmp
+delete upnpd.config.secure_mode
+delete upnpd.config.log_output
+set wifi_schedule.@global[0].unload_modules="0"
+add_list dockerd.globals.hosts="unix:///var/run/docker.sock"
+delete adblock.global.adb_dnsshift
+set adblock.global.adb_nicelimit="0"
+set adblock.global.adb_fetchretry="5"
+set adblock.global.adb_nftallow="0"
+set adblock.global.adb_nftblock="0"
+set adblock.global.adb_nftremote="0"
+set adblock.global.adb_nftbridge="0"
+set banip.global.ban_fetchretry="5"
+set banip.global.ban_nicelimit="0"
+set banip.global.ban_filelimit="1024"
+set banip.global.ban_deduplicate="1"
+set banip.global.ban_nftpriority="-100"
+set banip.global.ban_icmplimit="25"
+set banip.global.ban_synlimit="10"
+set banip.global.ban_udplimit="100"
+set banip.global.ban_nftpolicy="memory"
+set banip.global.ban_nftretry="3"
+set banip.global.ban_blockpolicy="drop"
+set banip.global.ban_nftloglevel="warn"
+set banip.global.ban_logprerouting="0"
+set banip.global.ban_loginbound="0"
+set banip.global.ban_logoutbound="0"
+set banip.global.ban_loglimit="100"
+set banip.global.ban_logratelimit="10"
+set banip.global.ban_logburstlimit="5"
+set banip.global.ban_autoallowlist="1"
+set banip.global.ban_autoallowuplink="subnet"
+set banip.global.ban_autoblocklist="1"
+set banip.global.ban_allowlistonly="0"
+EOI
+
+# Statistics → Setup: the page itself, then the plugins' dialogs
+uci -q batch << EOI
+set luci_statistics.collectd.Include="/etc/collectd/conf.d/*.conf"
+set luci_statistics.collectd_mqtt=statistics
+delete luci_statistics.collectd_network.enable
+delete luci_statistics.collectd_df.IgnoreSelected
+delete luci_statistics.collectd_df.ValuesPercentage
+delete luci_statistics.collectd_disk.IgnoreSelected
+delete luci_statistics.collectd_interface.IgnoreSelected
+delete luci_statistics.collectd_thermal.IgnoreSelected
+delete luci_statistics.collectd_memory.ValuesAbsolute
+delete luci_statistics.collectd_memory.ValuesPercentage
+set luci_statistics.collectd_ping.AddressFamily="any"
+delete luci_statistics.collectd_rrdtool.backup
+delete luci_statistics.collectd_rrdtool.RRATimespans
+add_list luci_statistics.collectd_rrdtool.RRATimespans="2hour"
+add_list luci_statistics.collectd_rrdtool.RRATimespans="1day"
+add_list luci_statistics.collectd_rrdtool.RRATimespans="1week"
+add_list luci_statistics.collectd_rrdtool.RRATimespans="1month"
+add_list luci_statistics.collectd_rrdtool.RRATimespans="1year"
+EOI
+uci commit

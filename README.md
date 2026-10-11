@@ -21,6 +21,7 @@ What the router does once flashed:
 | File sharing | One open SMB folder, `\\odyssey\share` | `99-ksmbd_config` |
 | Monitoring | Statistics graphs with history on disk, nlbwmon | `99-statistics_config`, `99-nlbwmon_config` |
 | Access | LuCI over HTTPS only, SSH with keys only | `99-uci_config` |
+| VPN | WireGuard server on UDP 51820, found through a dynamic DNS name | `99-wireguard_config`, `99-ddns_config` |
 | Wi-Fi | A protected 2.4 GHz network, switched off | `99-wifi_config` |
 | CPU | Current Intel microcode, loaded by the boot loader | `99-zz_microcode` |
 
@@ -66,6 +67,22 @@ SSH only accepts keys, so put the public keys allowed to log in as root into
 `private/files/etc/dropbear/authorized_keys` before building. Without it the router can only
 be managed from LuCI.
 
+### VPN
+
+The router runs a WireGuard server. Devices connecting to it get an address in
+`10.8.0.0/24` and reach the router, the LAN and, if they send everything through the tunnel,
+the internet. They use the router's DNS, so ad blocking applies to them as well.
+
+- **Dynamic DNS**: so that devices find the router from outside, a [DuckDNS](https://www.duckdns.org)
+  name follows the home's public address. Put the name and its token into
+  `private/files/etc/ddns.env` before building, as `DDNS_HOST="name.duckdns.org"` and
+  `DDNS_TOKEN="..."`. Without that file dynamic DNS stays off.
+- **Behind another router**: forward UDP port 51820 to this one.
+- **Adding a device**: in LuCI under Network → Interfaces → wg0 → Edit → Peers, choose
+  Add peer, then Generate new key pair, and give it the next free address under Allowed IPs
+  (`10.8.0.2/32`, `10.8.0.3/32`, ...). Generate configuration… then shows a QR code for the
+  WireGuard app. As DNS server for the device use `10.8.0.1`.
+
 ### Test
 
 `test/smoke.sh` boots the built image in QEMU and checks that the first boot did its job.
@@ -83,14 +100,16 @@ For a router already running this image:
 ./flash.sh
 ```
 
-It uploads the image, checks it, and upgrades the router over SSH. The address, SSH key and
-known-hosts file can be set in `private/flash.env` as `ROUTER`, `KEY` and `KNOWN_HOSTS`.
+It uploads the image, checks it, and upgrades the router over SSH. Docker is stopped first,
+so that containers shut down cleanly; they start again by themselves after the flash. The
+address, SSH key and known-hosts file can be set in `private/flash.env` as `ROUTER`, `KEY`
+and `KNOWN_HOSTS`.
 
 What a flash keeps and what it replaces:
 
 | | |
 |---|---|
-| Kept | Root password, SSH host keys, HTTPS certificate, the Wi-Fi password, everything on the data partition |
+| Kept | Root password, SSH host keys, HTTPS certificate, the Wi-Fi password, the VPN key and its devices, everything on the data partition |
 | Replaced | The whole configuration, which the first-boot scripts write again |
 
 After the flash the router restarts once more by itself, to load the CPU microcode.
@@ -130,5 +149,16 @@ the root partition grow later without moving the data.
   it; pick another in LuCI under System → System → Language and Style. Argon's login page
   keeps a local background; its online wallpapers can be switched on under System → Argon
   Config.
+- **DNS root keys**: `files/etc/unbound/root.key` holds the keys unbound trusts for DNSSEC,
+  taken from [IANA](https://data.iana.org/root-anchors/root-anchors.xml). The copy in
+  OpenWrt's package lacks the key the root zone is signed with since 11 October 2026, and
+  with that copy every lookup fails as soon as the DNS server restarts. When the root key
+  changes again, add its line here.
+- **Settings LuCI adds by itself**: LuCI stores some defaults only when a page or dialog is
+  saved, and they then appear as changes nobody asked for. `99-zy_luci_defaults` writes them
+  beforehand, without changing how the router behaves. Two settings are more than cosmetic
+  and sit in the scripts of their services: without `enabled` in the unbound configuration,
+  saving LuCI's page for it stops the DNS server, and without `use_ipv6` in a dynamic DNS
+  service, saving its dialog removes the service's settings.
 - **A new OpenWrt release** means changing `OPENWRT_VERSION` in `.env`, building, running
   the smoke test and flashing.
