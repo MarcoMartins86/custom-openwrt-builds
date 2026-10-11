@@ -32,6 +32,18 @@ if [ -f "${FILES}/etc/dropbear/authorized_keys" ]; then
 	chmod 600 "${FILES}/etc/dropbear/authorized_keys"
 fi
 
+# Packages from outside OpenWrt's feeds go into the folder the ImageBuilder
+# indexes by itself. The ones fetched last time are cleared first, so a changed
+# version does not leave the old file behind.
+[ -f packages/.extra ] && xargs -r rm -f < packages/.extra
+: > packages/.extra
+sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "${HERE}/extra-packages.txt" | while read -r sum url; do
+	file="packages/$(basename "${url}")"
+	wget -q -O "${file}" "${url}"
+	echo "${file}" >> packages/.extra
+	echo "${sum}  ${file}" | sha256sum -c -
+done
+
 PACKAGES="$(sed -e 's/#.*//' "${HERE}/packages.txt" | xargs)"
 
 make image \

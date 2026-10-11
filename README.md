@@ -36,6 +36,7 @@ The inputs are all in [odyssey-x86j4125-imagebuilder](odyssey-x86j4125-imagebuil
 |---|---|
 | `.env` | OpenWrt release, ImageBuilder profile, root partition size |
 | `packages.txt` | Packages added to, or removed from, the profile's defaults |
+| `extra-packages.txt` | Packages from outside OpenWrt's feeds, each pinned to a download and its SHA-256 |
 | `files/` | Files copied into the image, mainly the first-boot scripts |
 | `private/files/` | The same, for files that should not be public. Not in the repo |
 
@@ -125,5 +126,9 @@ the root partition grow later without moving the data.
 - **Docker** does not manage firewall rules here. Containers on Docker's default network
   reach the internet; a compose project needs `network_mode: bridge` or `host`, because the
   firewall does not know the networks compose creates.
+- **Themes**: LuCI starts with Argon. Footstrap and the stock ones are installed next to
+  it; pick another in LuCI under System → System → Language and Style. Argon's login page
+  keeps a local background; its online wallpapers can be switched on under System → Argon
+  Config.
 - **A new OpenWrt release** means changing `OPENWRT_VERSION` in `.env`, building, running
   the smoke test and flashing.
