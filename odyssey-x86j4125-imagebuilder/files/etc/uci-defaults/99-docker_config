@@ -1,0 +1,36 @@
+# https://openwrt.org/docs/guide-user/virtualization/docker_host
+# Docker keeps its images and containers on the data partition; without it,
+# stay off rather than fill the root filesystem.
+if grep -q " /mnt/data " /proc/mounts; then
+	mkdir -p /mnt/data/docker
+	# OpenWrt's firewall stays the only one: Docker adds no rules of its own
+	# (iptables 0) and its bridge gets a zone that may reach the internet.
+	# The interface, bridge and zone are declared here, before the network
+	# starts. Left to Docker's first start, the network manager reloads and
+	# deletes the bridge Docker has just created.
+	uci -q batch << EOI
+set dockerd.globals.data_root="/mnt/data/docker/"
+set dockerd.globals.iptables="0"
+commit dockerd
+set network.docker=interface
+set network.docker.device="docker0"
+set network.docker.proto="none"
+set network.docker.auto="0"
+add network device
+set network.@device[-1].type="bridge"
+set network.@device[-1].name="docker0"
+commit network
+set firewall.docker=zone
+set firewall.docker.name="docker"
+set firewall.docker.input="ACCEPT"
+set firewall.docker.output="ACCEPT"
+set firewall.docker.forward="ACCEPT"
+add_list firewall.docker.network="docker"
+add firewall forwarding
+set firewall.@forwarding[-1].src="docker"
+set firewall.@forwarding[-1].dest="wan"
+commit firewall
+EOI
+else
+	/etc/init.d/dockerd disable
+fi

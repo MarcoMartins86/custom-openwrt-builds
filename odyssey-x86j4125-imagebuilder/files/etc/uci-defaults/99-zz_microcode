@@ -1,0 +1,41 @@
+#!/bin/sh
+
+# The BIOS on this board carries CPU microcode from 2022 and there is no newer
+# BIOS. The newer microcode in /lib/firmware only helps if the boot loader hands
+# it to the kernel: this kernel refuses to load it later, and it settles its CPU
+# mitigations before that point anyway. Runs last, as it ends in a reboot.
+# https://docs.kernel.org/arch/x86/microcode.html
+
+GRUB="/boot/grub/grub.cfg"
+UCODE="/boot/intel-ucode.img"
+
+grep -q GenuineIntel /proc/cpuinfo || exit 0
+grep -q "initrd ${UCODE}" ${GRUB} && exit 0
+
+rm -f ${UCODE}
+iucode_tool -q -S --write-earlyfw=${UCODE} /lib/firmware/intel-ucode
+[ -s ${UCODE} ] || exit 0
+
+# Only the normal entry changes, so failsafe still boots the old way.
+# "noinitrd" has to go, or the kernel ignores the file on UEFI.
+awk -v ucode="${UCODE}" '{
+	if ($0 ~ /^[ \t]*linux / && $0 !~ /failsafe/) {
+		sub(/ noinitrd/, "")
+		print
+		print "\tinitrd " ucode
+	} else
+		print
+}' ${GRUB} > ${GRUB}.new
+
+# Replace the config only if the result is what was intended
+if [ "$(grep -c "initrd ${UCODE}" ${GRUB}.new)" = "1" ] \
+	&& [ "$(grep -c "^menuentry" ${GRUB}.new)" = "$(grep -c "^menuentry" ${GRUB})" ]; then
+	mv ${GRUB}.new ${GRUB}
+	sync
+	# Microcode is only applied at boot
+	reboot
+else
+	rm -f ${GRUB}.new ${UCODE}
+fi
+
+exit 0

@@ -1,0 +1,54 @@
+#!/bin/sh
+
+# The root partition has a fixed size, so the rest of the disk becomes a data
+# partition that survives reflashing: sysupgrade leaves it alone as long as the
+# image's partitions match the disk's, and if its entry is ever lost it is
+# recreated here in the same place. It is formatted only when it does not
+# already carry our label.
+
+LABEL="data"
+START="4GiB"
+MNT="/mnt/data"
+
+BOOT="$(sed -n -e "\|\s/boot\s.*$|{s///p;q}" /etc/mtab)"
+DISK="/dev/$(lsblk -n -o PKNAME ${BOOT})"
+PART="${BOOT%${BOOT##*[^0-9]}}3"
+
+if [ ! -b "${PART}" ]; then
+	# A freshly written image keeps its backup GPT where the image ends
+	echo fix | parted -l ---pretend-input-tty
+	parted -s ${DISK} mkpart ${LABEL} ext4 ${START} 100%
+	i=0
+	while [ ! -b "${PART}" ] && [ $i -lt 10 ]; do
+		sleep 1
+		i=$((i+1))
+	done
+fi
+# Without the partition, stop here and keep this script for the next boot
+[ -b "${PART}" ] || exit 1
+
+if [ "$(lsblk -n -o LABEL ${PART})" != "${LABEL}" ]; then
+	mkfs.ext4 -q -F -m 0 -L ${LABEL} ${PART}
+fi
+UUID="$(lsblk -n -o UUID ${PART})"
+
+mkdir -p ${MNT}
+# Drop any entry the automatic detection made for this partition, then add ours
+i=0
+while uci -q get fstab.@mount[$i] > /dev/null; do
+	if [ "$(uci -q get fstab.@mount[$i].uuid)" = "${UUID}" ] || [ "$(uci -q get fstab.@mount[$i].target)" = "${MNT}" ]; then
+		uci -q delete fstab.@mount[$i]
+	else
+		i=$((i+1))
+	fi
+done
+uci -q batch << EOI
+add fstab mount
+set fstab.@mount[-1].target="${MNT}"
+set fstab.@mount[-1].uuid="${UUID}"
+set fstab.@mount[-1].enabled="1"
+commit fstab
+EOI
+mount ${PART} ${MNT} || exit 1
+
+exit 0

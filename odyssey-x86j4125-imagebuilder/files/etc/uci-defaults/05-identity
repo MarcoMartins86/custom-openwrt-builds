@@ -1,0 +1,6 @@
+# Files under /etc/odyssey are carried across a reflash by the flash step.
+# Put the root password back before anything else starts.
+if [ -s /etc/odyssey/root.hash ]; then
+	HASH="$(cat /etc/odyssey/root.hash)"
+	sed -i -e "s|^root:[^:]*:|root:${HASH}:|" /etc/shadow
+fi

@@ -1,0 +1,66 @@
+# Packages added to (or, with a leading "-", removed from) the profile's defaults.
+# Only what has to be named is listed; dependencies are pulled in automatically.
+# Everything after a "#" is a comment.
+
+# --- Boot and CPU
+grub2 grub2-efi blockd
+intel-microcode iucode-tool            # loaded early by 99-zz_microcode
+kmod-pstore                            # keeps a crash record across restarts
+kmod-ikconfig                          # the kernel's build settings, in /proc/config.gz
+
+# --- Not on this board: drivers the x86/64 profile adds by default
+-kmod-amazon-ena -kmod-amd-xgbe -kmod-bnx2 -kmod-dwmac-intel -kmod-e1000 -kmod-e1000e
+-kmod-forcedeth -kmod-igc -kmod-ixgbe -kmod-r8169 -kmod-tg3
+
+# --- Storage
+kmod-ata-ahci kmod-sdhci kmod-loop kmod-scsi-cdrom kmod-scsi-generic
+kmod-fs-ext4 kmod-fs-exfat kmod-fs-ntfs3 kmod-fs-cifs kmod-fs-configfs kmod-fs-efivarfs kmod-fuse
+fdisk lsblk parted mount-utils         # 11-data_partition needs lsblk and parted
+
+# --- USB
+kmod-usb3 kmod-usb-hid kmod-usb-storage-uas kmod-usb-ledtrig-usbport
+# Serial adapters, including the chips used by Zigbee and Z-Wave sticks
+kmod-usb-acm kmod-usb-wdm
+kmod-usb-serial-ark3116 kmod-usb-serial-belkin kmod-usb-serial-ch341 kmod-usb-serial-cp210x
+kmod-usb-serial-cypress-m8 kmod-usb-serial-dmx_usb_module kmod-usb-serial-ftdi kmod-usb-serial-garmin
+kmod-usb-serial-keyspan kmod-usb-serial-mct kmod-usb-serial-mos7720 kmod-usb-serial-mos7840
+kmod-usb-serial-option kmod-usb-serial-oti6858 kmod-usb-serial-pl2303 kmod-usb-serial-qualcomm
+kmod-usb-serial-sierrawireless kmod-usb-serial-simple kmod-usb-serial-ti-usb kmod-usb-serial-visor
+kmod-usb-serial-xr
+
+# --- Wi-Fi (Intel 9560; kept switched off, see 99-wifi_config)
+kmod-iwlwifi iwlwifi-firmware-iwl9000 wpad-openssl iwinfo
+
+# --- DNS and DHCP: unbound and the full odhcpd instead of dnsmasq
+-dnsmasq -odhcpd-ipv6only odhcpd
+unbound-control luci-app-unbound
+luci-app-adblock tcpdump-mini          # tcpdump is what adblock's DNS report captures with
+
+# --- Firewall and network
+luci-app-banip
+iptables-nft ip6tables-nft iptables-mod-ipopt ipset
+luci-proto-wireguard luci-app-ddns
+miniupnpd-nftables luci-app-upnp luci-app-bcp38 luci-app-wifischedule
+kmod-tun kmod-gre6 umdns
+ip-tiny ethtool-full curl dnslookup dnstap
+
+# --- Containers and file sharing
+luci-app-dockerman                     # brings dockerd, docker and docker-compose
+luci-app-ksmbd
+
+# --- LuCI, served over HTTPS
+luci luci-ssl-openssl luci-compat luci-mod-dashboard luci-lib-json libiwinfo-lua
+luci-theme-material luci-theme-openwrt luci-theme-openwrt-2020
+-libustream-mbedtls libustream-openssl
+
+# --- Monitoring
+luci-app-nlbwmon
+luci-app-statistics
+collectd-mod-conntrack collectd-mod-cpufreq collectd-mod-df collectd-mod-disk
+collectd-mod-ping collectd-mod-sensors collectd-mod-thermal collectd-mod-uptime
+irqbalance
+
+# --- Tools
+bash nano-full htop atop acl attr dmidecode hwinfo
+bsdtar bzip2 gzip lz4 pigz unrar unzip zstd
+lzmadec lzmainfo xzdec xzdiff xzgrep xzless xzmore zipcmp zipmerge ziptool
