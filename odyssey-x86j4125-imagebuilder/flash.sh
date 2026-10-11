@@ -3,7 +3,8 @@
 # Flashes the built image to a running router over SSH and waits for it to come back.
 #
 # The router keeps its identity across the flash: root password, SSH host keys,
-# HTTPS certificate, and whatever the first-boot scripts keep under /etc/odyssey.
+# HTTPS certificate, the VPN key with the devices allowed to connect, and whatever
+# the first-boot scripts keep under /etc/odyssey.
 # Its configuration is not kept; the first-boot scripts regenerate it. The data
 # partition is left alone.
 # https://openwrt.org/docs/guide-user/installation/generic.sysupgrade
@@ -47,6 +48,17 @@ router '
 mkdir -p /etc/odyssey
 grep "^root:" /etc/shadow | cut -d: -f2 > /etc/odyssey/root.hash
 chmod 600 /etc/odyssey/root.hash
+# The VPN key and its devices live in the network configuration. Save them where
+# the first boot looks for them.
+if uci -q get network.wg0.private_key > /dev/null; then
+	mkdir -p /etc/wireguard
+	chmod 700 /etc/wireguard
+	(
+		umask 077
+		uci -q get network.wg0.private_key > /etc/wireguard/server.key
+		uci export network | awk "/^config /{keep=(\$2==\"wireguard_wg0\")} keep" > /etc/wireguard/peers
+	)
+fi
 KEEP=""
 for f in etc/odyssey etc/dropbear/dropbear_ed25519_host_key etc/dropbear/dropbear_rsa_host_key \
 	etc/uhttpd.crt etc/uhttpd.key etc/wireguard; do

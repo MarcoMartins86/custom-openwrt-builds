@@ -21,6 +21,7 @@ What the router does once flashed:
 | File sharing | One open SMB folder, `\\odyssey\share` | `99-ksmbd_config` |
 | Monitoring | Statistics graphs with history on disk, nlbwmon | `99-statistics_config`, `99-nlbwmon_config` |
 | Access | LuCI over HTTPS only, SSH with keys only | `99-uci_config` |
+| VPN | WireGuard server on UDP 51820, found through a dynamic DNS name | `99-wireguard_config`, `99-ddns_config` |
 | Wi-Fi | A protected 2.4 GHz network, switched off | `99-wifi_config` |
 | CPU | Current Intel microcode, loaded by the boot loader | `99-zz_microcode` |
 
@@ -66,6 +67,22 @@ SSH only accepts keys, so put the public keys allowed to log in as root into
 `private/files/etc/dropbear/authorized_keys` before building. Without it the router can only
 be managed from LuCI.
 
+### VPN
+
+The router runs a WireGuard server. Devices connecting to it get an address in
+`10.8.0.0/24` and reach the router, the LAN and, if they send everything through the tunnel,
+the internet. They use the router's DNS, so ad blocking applies to them as well.
+
+- **Dynamic DNS**: so that devices find the router from outside, a [DuckDNS](https://www.duckdns.org)
+  name follows the home's public address. Put the name and its token into
+  `private/files/etc/ddns.env` before building, as `DDNS_HOST="name.duckdns.org"` and
+  `DDNS_TOKEN="..."`. Without that file dynamic DNS stays off.
+- **Behind another router**: forward UDP port 51820 to this one.
+- **Adding a device**: in LuCI under Network → Interfaces → wg0 → Edit → Peers, choose
+  Add peer, then Generate new key pair, and give it the next free address under Allowed IPs
+  (`10.8.0.2/32`, `10.8.0.3/32`, ...). Generate configuration… then shows a QR code for the
+  WireGuard app. As DNS server for the device use `10.8.0.1`.
+
 ### Test
 
 `test/smoke.sh` boots the built image in QEMU and checks that the first boot did its job.
@@ -90,7 +107,7 @@ What a flash keeps and what it replaces:
 
 | | |
 |---|---|
-| Kept | Root password, SSH host keys, HTTPS certificate, the Wi-Fi password, everything on the data partition |
+| Kept | Root password, SSH host keys, HTTPS certificate, the Wi-Fi password, the VPN key and its devices, everything on the data partition |
 | Replaced | The whole configuration, which the first-boot scripts write again |
 
 After the flash the router restarts once more by itself, to load the CPU microcode.

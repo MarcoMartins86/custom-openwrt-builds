@@ -31,6 +31,8 @@ if [ -f "${FILES}/etc/dropbear/authorized_keys" ]; then
 	chmod 700 "${FILES}/etc/dropbear"
 	chmod 600 "${FILES}/etc/dropbear/authorized_keys"
 fi
+# holds the dynamic DNS token until the first boot
+[ -f "${FILES}/etc/ddns.env" ] && chmod 600 "${FILES}/etc/ddns.env"
 
 # Packages from outside OpenWrt's feeds go into the folder the ImageBuilder
 # indexes by itself. The ones fetched last time are cleared first, so a changed

@@ -27,6 +27,8 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'[ -d /mnt/data/share ] || f="$f share-folder"' \
 	'for s in dropbear uhttpd odhcpd; do /etc/init.d/$s running || f="$f $s-not-running"; done' \
 	'[ "$(uci -q get network.lan.ipaddr)" = 192.168.2.1/24 ] || f="$f lan-address"' \
+	'i=0; while [ $i -lt 15 ] && [ "$(wg show wg0 listen-port 2>/dev/null)" != 51820 ]; do sleep 2; i=$((i+1)); done' \
+	'[ $i -lt 15 ] || f="$f vpn-not-listening"' \
 	'if [ -z "$f" ]; then echo "SMOKE PASS"; else echo "SMOKE FAIL:$f"; fi')"
 echo "$OUT" | grep -E '^SMOKE (PASS|FAIL)'
 echo "$OUT" | grep -q '^SMOKE PASS$'
