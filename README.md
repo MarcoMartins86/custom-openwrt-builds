@@ -18,6 +18,7 @@ What the router does once flashed:
 | Ad blocking | adblock on unbound, DNS forced through the router, DNS report | `99-adblock_config` |
 | Firewall | OpenWrt's firewall plus banIP blocklists | `99-banip_config` |
 | Containers | Docker, with OpenWrt's firewall as the only firewall | `99-docker_config` |
+| Home automation | Home Assistant as a container, with a Zigbee stick | `99-homeassistant_config` |
 | File sharing | One open SMB folder, `\\odyssey\share` | `99-ksmbd_config` |
 | Monitoring | Statistics graphs with history on disk, nlbwmon | `99-statistics_config`, `99-nlbwmon_config` |
 | Access | LuCI over HTTPS only, SSH with keys only | `99-uci_config` |
@@ -82,6 +83,20 @@ the internet. They use the router's DNS, so ad blocking applies to them as well.
   Add peer, then Generate new key pair, and give it the next free address under Allowed IPs
   (`10.8.0.2/32`, `10.8.0.3/32`, ...). Generate configuration… then shows a QR code for the
   WireGuard app. As DNS server for the device use `10.8.0.1`.
+
+### Containers
+
+Every folder in `files/etc/compose` is a Docker Compose project. The router brings them up
+at boot (`/etc/init.d/compose`): a project already running as defined is left alone, a
+changed one is recreated, and a missing image is downloaded first. A blank disk therefore
+ends up with the containers running, without anything done by hand.
+
+[Home Assistant](https://www.home-assistant.io) is the one project so far, reachable at
+`http://odyssey.lan:8123`. Its settings are in `/mnt/data/homeassistant/config` on the data
+partition. It uses the Zigbee stick at `/dev/ttyUSB0` and does not start without it.
+
+Nothing updates by itself. `/etc/init.d/compose update` downloads newer images and
+recreates the containers that use them.
 
 ### Test
 

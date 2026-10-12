@@ -1,0 +1,20 @@
+# https://www.home-assistant.io/installation/linux#docker-compose
+# Its settings live on the data partition, so they survive reflashing.
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    # Host networking: finding devices needs the multicast traffic of the LAN.
+    # The firewall keeps port 8123 closed on the WAN side.
+    network_mode: host
+    restart: unless-stopped
+    # Home Assistant can take a while to stop cleanly
+    stop_grace_period: 2m
+    environment:
+      TZ: Europe/Lisbon
+    volumes:
+      - /mnt/data/homeassistant/config:/config
+    devices:
+      # Zigbee stick (Nabu Casa SkyConnect, also sold as Connect ZBT-1).
+      # The container does not start without it.
+      - /dev/ttyUSB0:/dev/ttyUSB0

@@ -1,0 +1,19 @@
+# https://www.home-assistant.io/installation/linux#docker-compose
+# Home Assistant runs as a container: defined in /etc/compose/homeassistant,
+# started by /etc/init.d/compose, with its settings on the data partition.
+# On a router it has to look for devices on the LAN side. Left to choose, it
+# takes the port with the default route, which here faces the modem.
+if grep -q " /mnt/data " /proc/mounts; then
+	STORAGE=/mnt/data/homeassistant/config/.storage
+	mkdir -p "${STORAGE}"
+	[ -e "${STORAGE}/core.network" ] || cat > "${STORAGE}/core.network" << EOI
+{
+  "version": 1,
+  "minor_version": 1,
+  "key": "core.network",
+  "data": {
+    "configured_adapters": ["br-lan"]
+  }
+}
+EOI
+fi

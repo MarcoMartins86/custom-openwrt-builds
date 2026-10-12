@@ -29,6 +29,7 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'[ "$(uci -q get network.lan.ipaddr)" = 192.168.2.1/24 ] || f="$f lan-address"' \
 	'i=0; while [ $i -lt 15 ] && [ "$(wg show wg0 listen-port 2>/dev/null)" != 51820 ]; do sleep 2; i=$((i+1)); done' \
 	'[ $i -lt 15 ] || f="$f vpn-not-listening"' \
+	'/etc/init.d/compose enabled || f="$f containers-not-enabled"' \
 	'if [ -z "$f" ]; then echo "SMOKE PASS"; else echo "SMOKE FAIL:$f"; fi')"
 echo "$OUT" | grep -E '^SMOKE (PASS|FAIL)'
 echo "$OUT" | grep -q '^SMOKE PASS$'

@@ -1,0 +1,33 @@
+#!/bin/sh
+# Brings up every Docker Compose project in /etc/compose. What already runs as
+# defined is left alone, a changed project is recreated, and a missing image is
+# downloaded first. That needs the internet, so this keeps trying for a while.
+# Started at boot by /etc/init.d/compose.
+
+try=0
+# Docker starts at the same time and needs a moment
+until docker info > /dev/null 2>&1; do
+	try=$((try + 1))
+	[ $try -gt 60 ] && { logger -t compose "Docker is not running, nothing started"; exit 1; }
+	sleep 5
+done
+
+try=0
+last=""
+while :; do
+	failed=""
+	for file in /etc/compose/*/docker-compose.yml; do
+		[ -f "$file" ] || continue
+		name="$(basename "$(dirname "$file")")"
+		docker-compose -f "$file" up -d --quiet-pull > "/tmp/compose-$name.log" 2>&1 || failed="$failed $name"
+	done
+	if [ -z "$failed" ]; then
+		[ -n "$last" ] && logger -t compose "all projects are up"
+		exit 0
+	fi
+	[ "$failed" = "$last" ] || logger -t compose "not up yet:$failed ($(tail -n 1 "/tmp/compose-${failed##* }.log"))"
+	last="$failed"
+	try=$((try + 1))
+	[ $try -ge 60 ] && { logger -t compose "giving up on:$failed"; exit 1; }
+	sleep 30
+done
