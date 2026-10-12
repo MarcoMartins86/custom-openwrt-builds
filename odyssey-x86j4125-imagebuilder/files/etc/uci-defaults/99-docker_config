@@ -31,6 +31,9 @@ set firewall.@forwarding[-1].src="docker"
 set firewall.@forwarding[-1].dest="wan"
 commit firewall
 EOI
+	# brings up the containers defined in /etc/compose
+	/etc/init.d/compose enable
 else
 	/etc/init.d/dockerd disable
+	/etc/init.d/compose disable
 fi

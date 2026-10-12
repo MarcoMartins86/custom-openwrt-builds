@@ -31,6 +31,10 @@ if [ -f "${FILES}/etc/dropbear/authorized_keys" ]; then
 	chmod 700 "${FILES}/etc/dropbear"
 	chmod 600 "${FILES}/etc/dropbear/authorized_keys"
 fi
+# git clients on Windows drop the executable bit, which these need
+for d in etc/init.d usr/libexec; do
+	[ -d "${FILES}/${d}" ] && chmod 755 "${FILES}/${d}"/*
+done
 # holds the dynamic DNS token until the first boot
 [ -f "${FILES}/etc/ddns.env" ] && chmod 600 "${FILES}/etc/ddns.env"
 
