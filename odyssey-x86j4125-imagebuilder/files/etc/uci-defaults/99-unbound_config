@@ -14,3 +14,22 @@ commit unbound
 set dhcp.odhcpd.leasetrigger="/usr/lib/unbound/odhcpd.sh"
 commit dhcp
 EOI
+# Behind another router, the devices on that one's network may use this DNS
+# server too, if WAN_DNS_CLIENTS names their network. The firewall lets DNS in
+# from there and nowhere else on the WAN side, and the DNS server, which only
+# answers the networks it knows, gets that one added.
+. /etc/build.env
+if [ -n "${WAN_DNS_CLIENTS}" ]; then
+	echo "access-control: ${WAN_DNS_CLIENTS} allow" >> /etc/unbound/unbound_srv.conf
+	uci -q batch << EOI
+set firewall.wan_dns=rule
+set firewall.wan_dns.name="Allow-DNS-WAN-side"
+set firewall.wan_dns.src="wan"
+set firewall.wan_dns.src_ip="${WAN_DNS_CLIENTS}"
+add_list firewall.wan_dns.proto="tcp"
+add_list firewall.wan_dns.proto="udp"
+set firewall.wan_dns.dest_port="53"
+set firewall.wan_dns.target="ACCEPT"
+commit firewall
+EOI
+fi
