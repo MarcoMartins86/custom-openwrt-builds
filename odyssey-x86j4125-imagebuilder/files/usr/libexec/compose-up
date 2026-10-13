@@ -16,10 +16,11 @@ try=0
 last=""
 while :; do
 	failed=""
-	for file in /etc/compose/*/docker-compose.yml; do
-		[ -f "$file" ] || continue
-		name="$(basename "$(dirname "$file")")"
-		docker-compose -f "$file" up -d --quiet-pull > "/tmp/compose-$name.log" 2>&1 || failed="$failed $name"
+	for dir in /etc/compose/*/; do
+		[ -f "${dir}docker-compose.yml" ] || continue
+		name="$(basename "$dir")"
+		# run from the folder, so that Compose also finds an override file and .env
+		(cd "$dir" && docker-compose up -d --quiet-pull) > "/tmp/compose-$name.log" 2>&1 || failed="$failed $name"
 	done
 	if [ -z "$failed" ]; then
 		[ -n "$last" ] && logger -t compose "all projects are up"

@@ -9,6 +9,11 @@
 #   LAN=dgram  wire the lan NIC to lan.sock/lan-peer.sock for dhcp_probe.py
 set -e
 Q="$(cd "$(dirname "$0")" && pwd)"
+. "$Q/../.env"
+[ -f "$Q/../private/.env" ] && . "$Q/../private/.env"
+# the router's LAN address and the first three numbers of its network, taken as a /24
+LANIP="${LAN_ADDRESS%/*}"
+LANNET="${LANIP%.*}"
 IMG=${IMG:-$(ls "$Q"/../binaries/openwrt-*-ext4-combined-efi.img.gz 2>/dev/null | head -1)}
 SIZE=${1:-8G}
 BUS=${2:-sata}
@@ -41,13 +46,13 @@ case "$BUS" in
 esac
 
 case "${LAN:-slirp}" in
-	slirp) LANDEV="user,id=lan,net=192.168.2.0/24,host=192.168.2.2,dhcpstart=192.168.2.200,hostfwd=tcp:127.0.0.1:2222-192.168.2.1:22,hostfwd=tcp:127.0.0.1:8080-192.168.2.1:80" ;;
+	slirp) LANDEV="user,id=lan,net=${LANNET}.0/24,host=${LANNET}.2,dhcpstart=${LANNET}.200,hostfwd=tcp:127.0.0.1:2222-${LANIP}:22,hostfwd=tcp:127.0.0.1:8080-${LANIP}:80" ;;
 	dgram) LANDEV="dgram,id=lan,local.type=unix,local.path=$Q/lan.sock,remote.type=unix,remote.path=$Q/lan-peer.sock" ;;
 	*) echo "unknown LAN $LAN" >&2; exit 1 ;;
 esac
 
 # each igb sits on its own root port, as its SR-IOV functions need a whole bus
-# first NIC = eth0 = lan (192.168.2.1 after first boot), second = eth1 = wan (DHCP from QEMU)
+# first NIC = eth0 = lan (LAN_ADDRESS after first boot), second = eth1 = wan (DHCP from QEMU)
 qemu-system-x86_64 \
 	-machine q35 $ACCEL -smp 4 -m ${MEM:-2048} \
 	-drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \

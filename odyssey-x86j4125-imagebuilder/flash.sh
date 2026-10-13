@@ -11,17 +11,21 @@
 #
 # usage: flash.sh [-y] [image.img.gz]
 #   -y   do not ask before flashing
-# Settings come from the environment or from private/flash.env:
-#   ROUTER (192.168.2.1), PORT (22), KEY (an SSH private key), KNOWN_HOSTS (a file)
+# Settings, from private/.env or, taking precedence, from the environment:
+#   ROUTER (the address in LAN_ADDRESS), PORT (22), KEY (an SSH private key),
+#   KNOWN_HOSTS (a file)
 
 set -e
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
+given_ROUTER="${ROUTER}" given_PORT="${PORT}" given_KEY="${KEY}" given_KNOWN_HOSTS="${KNOWN_HOSTS}"
 . "${HERE}/.env"
-[ -f "${HERE}/private/flash.env" ] && . "${HERE}/private/flash.env"
+[ -f "${HERE}/private/.env" ] && . "${HERE}/private/.env"
 
-ROUTER="${ROUTER:-192.168.2.1}"
-PORT="${PORT:-22}"
+ROUTER="${given_ROUTER:-${ROUTER:-${LAN_ADDRESS%/*}}}"
+PORT="${given_PORT:-${PORT:-22}}"
+KEY="${given_KEY:-${KEY}}"
+KNOWN_HOSTS="${given_KNOWN_HOSTS:-${KNOWN_HOSTS}}"
 
 YES=""
 [ "$1" = "-y" ] && { YES=1; shift; }

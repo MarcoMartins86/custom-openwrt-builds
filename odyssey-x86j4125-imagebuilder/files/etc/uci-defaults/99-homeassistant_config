@@ -1,9 +1,24 @@
 # https://www.home-assistant.io/installation/linux#docker-compose
 # Home Assistant runs as a container: defined in /etc/compose/homeassistant,
 # started by /etc/init.d/compose, with its settings on the data partition.
-# On a router it has to look for devices on the LAN side. Left to choose, it
-# takes the port with the default route, which here faces the modem.
-if grep -q " /mnt/data " /proc/mounts; then
+. /etc/build.env
+PROJECT=/etc/compose/homeassistant
+if [ "${HOME_ASSISTANT}" = 1 ] && grep -q " /mnt/data " /proc/mounts; then
+	# What differs from one router to the next stays out of docker-compose.yml.
+	# Compose reads both of these files by itself.
+	echo "TZ=${TIMEZONE}" > "${PROJECT}/.env"
+	if [ -n "${ZIGBEE_DEVICE}" ]; then
+		cat > "${PROJECT}/docker-compose.override.yml" << EOI
+# Written on the first boot, from ZIGBEE_DEVICE.
+# The container does not start while the stick is missing.
+services:
+  homeassistant:
+    devices:
+      - ${ZIGBEE_DEVICE}:${ZIGBEE_DEVICE}
+EOI
+	fi
+	# On a router it has to look for devices on the LAN side. Left to choose, it
+	# takes the port with the default route, which here faces the modem.
 	STORAGE=/mnt/data/homeassistant/config/.storage
 	mkdir -p "${STORAGE}"
 	[ -e "${STORAGE}/core.network" ] || cat > "${STORAGE}/core.network" << EOI
@@ -16,4 +31,6 @@ if grep -q " /mnt/data " /proc/mounts; then
   }
 }
 EOI
+else
+	rm -rf "${PROJECT}"
 fi

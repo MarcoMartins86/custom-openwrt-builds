@@ -1,6 +1,8 @@
 # https://openwrt.org/docs/guide-user/services/nas/cifs.server
 # One open, guest read-write folder for passing files around, on the data partition.
-if grep -q " /mnt/data " /proc/mounts; then
+# GUEST_SHARE is the name it is offered under; without one there is no file sharing.
+. /etc/build.env
+if [ -n "${GUEST_SHARE}" ] && grep -q " /mnt/data " /proc/mounts; then
 	mkdir -p /mnt/data/share
 	chown nobody:nogroup /mnt/data/share
 	chmod 0777 /mnt/data/share
@@ -8,7 +10,7 @@ if grep -q " /mnt/data " /proc/mounts; then
 set ksmbd.@globals[0].interface="lan"
 set ksmbd.@globals[0].allow_guest_ipc="1"
 add ksmbd share
-set ksmbd.@share[-1].name="share"
+set ksmbd.@share[-1].name="${GUEST_SHARE}"
 set ksmbd.@share[-1].path="/mnt/data/share"
 set ksmbd.@share[-1].read_only="no"
 set ksmbd.@share[-1].guest_ok="yes"
@@ -16,4 +18,6 @@ set ksmbd.@share[-1].create_mask="0666"
 set ksmbd.@share[-1].dir_mask="0777"
 commit ksmbd
 EOI
+else
+	/etc/init.d/ksmbd disable
 fi

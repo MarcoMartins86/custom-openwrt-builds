@@ -3,6 +3,7 @@
 # Its key and those devices are kept in /etc/wireguard, where the flash step saves
 # them and carries them across a reflash. A router starting without them gets a
 # new key and no devices.
+. /etc/build.env
 mkdir -p /etc/wireguard
 chmod 700 /etc/wireguard
 [ -s /etc/wireguard/server.key ] || (umask 077; wg genkey > /etc/wireguard/server.key)
@@ -13,8 +14,8 @@ uci -q batch << EOI
 set network.wg0=interface
 set network.wg0.proto="wireguard"
 set network.wg0.private_key="$(cat /etc/wireguard/server.key)"
-set network.wg0.listen_port="51820"
-add_list network.wg0.addresses="10.8.0.1/24"
+set network.wg0.listen_port="${VPN_PORT}"
+add_list network.wg0.addresses="${VPN_ADDRESS}"
 commit network
 set firewall.vpn=zone
 set firewall.vpn.name="vpn"
@@ -35,14 +36,15 @@ set firewall.wireguard=rule
 set firewall.wireguard.name="Allow-WireGuard"
 set firewall.wireguard.src="wan"
 set firewall.wireguard.proto="udp"
-set firewall.wireguard.dest_port="51820"
+set firewall.wireguard.dest_port="${VPN_PORT}"
 set firewall.wireguard.target="ACCEPT"
 commit firewall
 add_list adblock.global.adb_nftdevforce="wg0"
 commit adblock
 EOI
 # The DNS server only answers the networks it knows; add the VPN's range
-echo "access-control: 10.8.0.0/24 allow" >> /etc/unbound/unbound_srv.conf
+eval "$(ipcalc.sh "${VPN_ADDRESS}")"
+echo "access-control: ${NETWORK}/${PREFIX} allow" >> /etc/unbound/unbound_srv.conf
 # The saved devices are sections in the format of /etc/config/network
 if [ -s /etc/wireguard/peers ]; then
 	uci -m import network < /etc/wireguard/peers

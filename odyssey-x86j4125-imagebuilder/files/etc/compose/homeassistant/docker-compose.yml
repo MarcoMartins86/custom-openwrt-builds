@@ -1,5 +1,8 @@
 # https://www.home-assistant.io/installation/linux#docker-compose
 # Its settings live on the data partition, so they survive reflashing.
+# What differs from one router to the next is not in here: the time zone comes
+# from the .env file next to this one, and the Zigbee stick, if there is one,
+# from docker-compose.override.yml. The first boot writes both.
 services:
   homeassistant:
     container_name: homeassistant
@@ -11,10 +14,6 @@ services:
     # Home Assistant can take a while to stop cleanly
     stop_grace_period: 2m
     environment:
-      TZ: Europe/Lisbon
+      TZ: ${TZ}
     volumes:
       - /mnt/data/homeassistant/config:/config
-    devices:
-      # Zigbee stick (Nabu Casa SkyConnect, also sold as Connect ZBT-1).
-      # The container does not start without it.
-      - /dev/ttyUSB0:/dev/ttyUSB0
