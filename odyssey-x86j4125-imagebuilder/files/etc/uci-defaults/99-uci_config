@@ -1,24 +1,31 @@
 # https://openwrt.org/docs/guide-developer/uci-defaults#integrating_custom_settings
+. /etc/build.env
+# OpenWrt wants the time zone twice: its name, and the rule behind it, which
+# comes from LuCI's table. A name that is not in there leaves the clock on UTC.
+TZRULE="$(grep -F "'${TIMEZONE}':" /usr/share/ucode/luci/zoneinfo.uc | cut -d"'" -f4)"
+[ -d "/www/luci-static/${LUCI_THEME}" ] && THEME="${LUCI_THEME}"
 uci -q batch << EOI
 delete network.lan.ipaddr
-add_list network.lan.ipaddr='192.168.2.1/24'
+add_list network.lan.ipaddr='${LAN_ADDRESS}'
 commit network
-set system.@system[0].hostname='odyssey'
-set system.@system[0].zonename='Europe/Lisbon'
-set system.@system[0].timezone='WET0WEST,M3.5.0/1,M10.5.0'
+set system.@system[0].hostname='${ROUTER_NAME}'
+${TZRULE:+set system.@system[0].zonename='${TIMEZONE}'}
+${TZRULE:+set system.@system[0].timezone='${TZRULE}'}
 commit system
 set uhttpd.main.redirect_https='1'
-set uhttpd.defaults.commonname='odyssey.lan'
-set uhttpd.defaults.organization='odyssey'
+set uhttpd.defaults.commonname='${ROUTER_NAME}.lan'
+set uhttpd.defaults.organization='${ROUTER_NAME}'
 commit uhttpd
 set dropbear.main.PasswordAuth='off'
 set dropbear.main.RootPasswordAuth='off'
 commit dropbear
+${THEME:+set luci.main.mediaurlbase='/luci-static/${THEME}'}
+commit luci
 EOI
 # A certificate carried across a reflash keeps its old name and expiry date.
 # Remove it when either is wrong and the web server creates a fresh one.
 if [ -s /etc/uhttpd.crt ]; then
-	openssl x509 -in /etc/uhttpd.crt -noout -subject | grep -q "CN *= *odyssey\.lan" \
+	openssl x509 -in /etc/uhttpd.crt -noout -subject | grep -q "CN *= *${ROUTER_NAME}\.lan" \
 		&& openssl x509 -in /etc/uhttpd.crt -noout -checkend 2592000 > /dev/null \
 		|| rm -f /etc/uhttpd.crt /etc/uhttpd.key
 fi

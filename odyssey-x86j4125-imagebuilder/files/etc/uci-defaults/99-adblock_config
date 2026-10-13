@@ -1,34 +1,11 @@
 # https://github.com/openwrt/packages/blob/master/net/adblock/files/README.md
 # The stevenblack feed takes the file path of a variant from /etc/adblock/adblock.categories;
 # "hosts" is the standard list, without the fake news, gambling, porn or social extras.
+. /etc/build.env
 uci -q batch << EOI
 set adblock.global.adb_triggerdelay="120"
 delete adblock.global.adb_feed
-add_list adblock.global.adb_feed="adguard"
-add_list adblock.global.adb_feed="adguard_tracking"
-add_list adblock.global.adb_feed="android_tracking"
-add_list adblock.global.adb_feed="andryou"
-add_list adblock.global.adb_feed="anti_ad"
-add_list adblock.global.adb_feed="anudeep"
-add_list adblock.global.adb_feed="bitcoin"
-add_list adblock.global.adb_feed="cpbl"
-add_list adblock.global.adb_feed="disconnect"
-add_list adblock.global.adb_feed="doh_blocklist"
-add_list adblock.global.adb_feed="firetv_tracking"
-add_list adblock.global.adb_feed="games_tracking"
-add_list adblock.global.adb_feed="hblock"
-add_list adblock.global.adb_feed="oisd_big"
-add_list adblock.global.adb_feed="oisd_small"
-add_list adblock.global.adb_feed="phishing_army"
-add_list adblock.global.adb_feed="smarttv_tracking"
-add_list adblock.global.adb_feed="spam404"
-add_list adblock.global.adb_feed="stevenblack"
-add_list adblock.global.adb_feed="stopforumspam"
-add_list adblock.global.adb_feed="utcapitole"
-add_list adblock.global.adb_feed="wally3k"
-add_list adblock.global.adb_feed="whocares"
-add_list adblock.global.adb_feed="winspy"
-add_list adblock.global.adb_feed="yoyo"
+$(for feed in ${ADBLOCK_FEEDS}; do echo "add_list adblock.global.adb_feed=\"${feed}\""; done)
 set adblock.global.adb_nftforce="1"
 delete adblock.global.adb_nftdevforce
 add_list adblock.global.adb_nftdevforce="br-lan"
@@ -36,15 +13,10 @@ delete adblock.global.adb_nftportforce
 add_list adblock.global.adb_nftportforce="53"
 set adblock.global.adb_report="1"
 set adblock.global.adb_repiface="br-lan"
-set adblock.global.adb_map="1"
+set adblock.global.adb_map="${ADBLOCK_MAP:-0}"
 delete adblock.global.adb_stb_feed
 add_list adblock.global.adb_stb_feed="hosts"
 delete adblock.global.adb_utc_feed
-add_list adblock.global.adb_utc_feed="publicite"
-add_list adblock.global.adb_utc_feed="malware"
-add_list adblock.global.adb_utc_feed="phishing"
-add_list adblock.global.adb_utc_feed="cryptojacking"
-add_list adblock.global.adb_utc_feed="stalkerware"
-add_list adblock.global.adb_utc_feed="ddos"
+$(for category in ${ADBLOCK_UTC_CATEGORIES}; do echo "add_list adblock.global.adb_utc_feed=\"${category}\""; done)
 commit adblock
 EOI

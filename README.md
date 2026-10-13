@@ -28,7 +28,8 @@ What the router does once flashed:
 
 The scripts are in [files/etc/uci-defaults](odyssey-x86j4125-imagebuilder/files/etc/uci-defaults).
 OpenWrt runs each of them once, on the first boot after a flash, so the image defines the
-router's whole configuration.
+router's whole configuration. The names and addresses on this page are the defaults; what
+can be chosen is listed under [Settings](#settings).
 
 ### Build
 
@@ -36,7 +37,8 @@ The inputs are all in [odyssey-x86j4125-imagebuilder](odyssey-x86j4125-imagebuil
 
 | File | Holds |
 |---|---|
-| `.env` | OpenWrt release, ImageBuilder profile, root partition size |
+| `.env` | The [settings](#settings): everything that can be chosen about the image |
+| `private/.env` | Your own values for those settings, and the private ones. Not in the repo |
 | `packages.txt` | Packages added to, or removed from, the profile's defaults |
 | `extra-packages.txt` | Packages from outside OpenWrt's feeds, each pinned to a download and its SHA-256 |
 | `files/` | Files copied into the image, mainly the first-boot scripts |
@@ -62,6 +64,41 @@ Without Docker, extract the ImageBuilder for the release in `.env` and run
 > **Note** A release keeps receiving package updates, so two builds some time apart can
 > differ in package versions. Compare the manifests to see what changed.
 
+### Settings
+
+`.env` holds every choice with a default. To change one, put it into `private/.env`, which
+is read after `.env` and is not in the repo; this keeps your own values out of a public
+fork. The build writes the settings into the image, where the first-boot scripts read them.
+
+| Setting | Default | What it sets |
+|---|---|---|
+| `OPENWRT_VERSION` | `25.12.5` | OpenWrt release to build |
+| `PROFILE` | `generic` | ImageBuilder profile |
+| `ROOTFS_PARTSIZE` | `2048` | Root partition size in MB |
+| `ROUTER_NAME` | `odyssey` | Host name; the HTTPS certificate is issued to `<name>.lan` |
+| `LAN_ADDRESS` | `192.168.2.1/24` | The router's LAN address and the size of the network |
+| `TIMEZONE` | `Europe/Lisbon` | Time zone, by the name LuCI lists |
+| `WIFI_SSID` | `odyssey-admin` | Name of the Wi-Fi network that is kept switched off |
+| `VPN_PORT` | `51820` | UDP port of the WireGuard server |
+| `VPN_ADDRESS` | `10.8.0.1/24` | The server's address in the range VPN devices get |
+| `ADBLOCK_FEEDS` | 25 feeds | Adblock's blocklists |
+| `ADBLOCK_UTC_CATEGORIES` | ads and security | Categories taken from the utcapitole feed |
+| `ADBLOCK_MAP` | `1` | Map of blocked domains in the DNS report, which sends their addresses to ip-api.com |
+| `BANIP_FEEDS` | 5 feeds | banIP's blocklists |
+| `GUEST_SHARE` | `share` | Network name of the open SMB folder; empty switches file sharing off |
+| `HOME_ASSISTANT` | `1` | Home Assistant as a container; `0` leaves it out |
+| `ZIGBEE_DEVICE` | `/dev/ttyUSB0` | Zigbee stick handed to Home Assistant; empty for none |
+| `LUCI_THEME` | `argon` | Theme LuCI starts with |
+
+Private settings, which only make sense in `private/.env`:
+
+| Setting | What it sets |
+|---|---|
+| `DDNS_PROVIDER`, `DDNS_HOST`, `DDNS_TOKEN` | Dynamic DNS: the provider (`duckdns.org`, or another of the names in `/usr/share/ddns/default` on the router), the name that follows the home's public address, and its token. Without them dynamic DNS stays off |
+| `DDNS_USER` | Account name, for providers that ask for one next to the token |
+| `KEY`, `KNOWN_HOSTS` | For `flash.sh`: the SSH private key to log in with, and the file holding the router's host key |
+| `ROUTER`, `PORT` | For `flash.sh`: where to reach the router, if not at the address in `LAN_ADDRESS` on port 22 |
+
 ### SSH access
 
 SSH only accepts keys, so put the public keys allowed to log in as root into
@@ -74,11 +111,12 @@ The router runs a WireGuard server. Devices connecting to it get an address in
 `10.8.0.0/24` and reach the router, the LAN and, if they send everything through the tunnel,
 the internet. They use the router's DNS, so ad blocking applies to them as well.
 
-- **Dynamic DNS**: so that devices find the router from outside, a [DuckDNS](https://www.duckdns.org)
-  name follows the home's public address. Put the name and its token into
-  `private/files/etc/ddns.env` before building, as `DDNS_HOST="name.duckdns.org"` and
-  `DDNS_TOKEN="..."`. Without that file dynamic DNS stays off.
-- **Behind another router**: forward UDP port 51820 to this one.
+- **Dynamic DNS**: so that devices find the router from outside, a name at a dynamic DNS
+  provider follows the home's public address. Put the provider, the name and its token into
+  `private/.env` before building, for [DuckDNS](https://www.duckdns.org) as
+  `DDNS_PROVIDER=duckdns.org`, `DDNS_HOST=name.duckdns.org` and `DDNS_TOKEN=...`. Without
+  them dynamic DNS stays off.
+- **Behind another router**: forward the VPN's UDP port to this one.
 - **Adding a device**: in LuCI under Network → Interfaces → wg0 → Edit → Peers, choose
   Add peer, then Generate new key pair, and give it the next free address under Allowed IPs
   (`10.8.0.2/32`, `10.8.0.3/32`, ...). Generate configuration… then shows a QR code for the
@@ -93,7 +131,9 @@ ends up with the containers running, without anything done by hand.
 
 [Home Assistant](https://www.home-assistant.io) is the one project so far, reachable at
 `http://odyssey.lan:8123`. Its settings are in `/mnt/data/homeassistant/config` on the data
-partition. It uses the Zigbee stick at `/dev/ttyUSB0` and does not start without it.
+partition. It is handed the Zigbee stick named in `ZIGBEE_DEVICE` and does not start while
+that device is missing; with the setting empty it runs without one. `HOME_ASSISTANT=0`
+leaves it out altogether.
 
 Nothing updates by itself. `/etc/init.d/compose update` downloads newer images and
 recreates the containers that use them.
@@ -117,8 +157,7 @@ For a router already running this image:
 
 It uploads the image, checks it, and upgrades the router over SSH. Docker is stopped first,
 so that containers shut down cleanly; they start again by themselves after the flash. The
-address, SSH key and known-hosts file can be set in `private/flash.env` as `ROUTER`, `KEY`
-and `KNOWN_HOSTS`.
+SSH key and known-hosts file come from `private/.env`, see [Settings](#settings).
 
 What a flash keeps and what it replaces:
 

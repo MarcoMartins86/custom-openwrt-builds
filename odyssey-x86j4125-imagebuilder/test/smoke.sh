@@ -5,6 +5,8 @@
 #
 # usage: [IMG=path] smoke.sh
 Q="$(cd "$(dirname "$0")" && pwd)"
+. "$Q/../.env"
+[ -f "$Q/../private/.env" ] && . "$Q/../private/.env"
 
 stop() {
 	python3 "$Q/ser.py" sh 30 'sync; poweroff' > /dev/null 2>&1
@@ -24,10 +26,10 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'[ -z "$(ls /etc/uci-defaults)" ] || f="$f first-boot-scripts-left"' \
 	'grep -q " /mnt/data " /proc/mounts || f="$f data-partition-not-mounted"' \
 	'[ "$(lsblk -n -o LABEL /dev/sda3)" = data ] || f="$f data-partition-label"' \
-	'[ -d /mnt/data/share ] || f="$f share-folder"' \
+	'[ -z "'"${GUEST_SHARE}"'" ] || [ -d /mnt/data/share ] || f="$f share-folder"' \
 	'for s in dropbear uhttpd odhcpd; do /etc/init.d/$s running || f="$f $s-not-running"; done' \
-	'[ "$(uci -q get network.lan.ipaddr)" = 192.168.2.1/24 ] || f="$f lan-address"' \
-	'i=0; while [ $i -lt 15 ] && [ "$(wg show wg0 listen-port 2>/dev/null)" != 51820 ]; do sleep 2; i=$((i+1)); done' \
+	'[ "$(uci -q get network.lan.ipaddr)" = '"${LAN_ADDRESS}"' ] || f="$f lan-address"' \
+	'i=0; while [ $i -lt 15 ] && [ "$(wg show wg0 listen-port 2>/dev/null)" != '"${VPN_PORT}"' ]; do sleep 2; i=$((i+1)); done' \
 	'[ $i -lt 15 ] || f="$f vpn-not-listening"' \
 	'/etc/init.d/compose enabled || f="$f containers-not-enabled"' \
 	'if [ -z "$f" ]; then echo "SMOKE PASS"; else echo "SMOKE FAIL:$f"; fi')"

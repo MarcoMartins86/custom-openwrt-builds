@@ -1,7 +1,9 @@
 # https://openwrt.org/docs/guide-user/services/ddns/client
-# Keeps a DuckDNS name pointing at the home's public address, so the VPN can be
-# found from outside. The name and its token are private: the build copies them
-# in from private/files/etc/ddns.env. Without that file dynamic DNS stays off.
+# Keeps a name at a dynamic DNS provider pointing at the home's public address,
+# so the VPN can be found from outside. Provider, name and token are private:
+# the build takes DDNS_PROVIDER, DDNS_HOST, DDNS_USER and DDNS_TOKEN from
+# private/.env and leaves them in /etc/ddns.env for this script. Without them
+# dynamic DNS stays off.
 if [ -s /etc/ddns.env ]; then
 	. /etc/ddns.env
 	# The WAN port sits behind the modem and only has a private address, so the
@@ -14,10 +16,10 @@ delete ddns.myddns_ipv6
 set ddns.home=service
 set ddns.home.enabled="1"
 set ddns.home.use_ipv6="0"
-set ddns.home.service_name="duckdns.org"
+set ddns.home.service_name="${DDNS_PROVIDER}"
 set ddns.home.lookup_host="${DDNS_HOST}"
-set ddns.home.domain="${DDNS_HOST%%.*}"
-set ddns.home.username="${DDNS_HOST%%.*}"
+set ddns.home.domain="${DDNS_HOST}"
+set ddns.home.username="${DDNS_USER:-${DDNS_HOST}}"
 set ddns.home.password="${DDNS_TOKEN}"
 set ddns.home.use_https="1"
 set ddns.home.cacert="/etc/ssl/certs/ca-certificates.crt"
@@ -28,11 +30,12 @@ set ddns.home.use_syslog="2"
 commit ddns
 EOI
 	# Adblock's lists block address lookup services like the one above, since
-	# malware uses them too. Keep the names this depends on resolvable.
-	cat >> /etc/adblock/adblock.allowlist << EOI
-checkip.amazonaws.com
-www.duckdns.org
-${DDNS_HOST}
-EOI
+	# malware uses them too. Keep the names this depends on resolvable: that
+	# service, the host the provider takes its updates on, and the name itself.
+	UPDATE_HOST="$(jsonfilter -i "/usr/share/ddns/default/${DDNS_PROVIDER}.json" -e '@.ipv4.url' 2> /dev/null \
+		| sed -E 's|^[a-z]+://([^/@]*@)?([^/:?]+).*|\2|')"
+	for host in checkip.amazonaws.com ${UPDATE_HOST} "${DDNS_HOST}"; do
+		echo "${host}"
+	done >> /etc/adblock/adblock.allowlist
 	rm -f /etc/ddns.env
 fi

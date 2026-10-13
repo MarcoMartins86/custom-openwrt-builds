@@ -12,6 +12,32 @@ set -e
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 . "${HERE}/.env"
+[ -f "${HERE}/private/.env" ] && . "${HERE}/private/.env"
+
+# What the first-boot scripts get to know. Anything else in the two files stays
+# on this side of the build.
+SETTINGS="ROUTER_NAME LAN_ADDRESS TIMEZONE WIFI_SSID VPN_PORT VPN_ADDRESS
+	ADBLOCK_FEEDS ADBLOCK_UTC_CATEGORIES ADBLOCK_MAP BANIP_FEEDS GUEST_SHARE
+	HOME_ASSISTANT ZIGBEE_DEVICE LUCI_THEME"
+for name in ROUTER_NAME LAN_ADDRESS TIMEZONE WIFI_SSID VPN_PORT VPN_ADDRESS LUCI_THEME; do
+	eval "value=\${${name}}"
+	[ -n "${value}" ] || { echo "${name} is empty; set it in .env or private/.env" >&2; exit 1; }
+done
+# Dynamic DNS is all or nothing
+if [ -n "${DDNS_PROVIDER}${DDNS_HOST}${DDNS_TOKEN}" ]; then
+	for name in DDNS_PROVIDER DDNS_HOST DDNS_TOKEN; do
+		eval "value=\${${name}}"
+		[ -n "${value}" ] || { echo "${name} is missing; dynamic DNS needs DDNS_PROVIDER, DDNS_HOST and DDNS_TOKEN in private/.env" >&2; exit 1; }
+	done
+fi
+
+# Prints the named settings in a form the shell can read back
+write_env() {
+	for name in "$@"; do
+		eval "value=\${${name}}"
+		printf "%s='%s'\n" "${name}" "$(printf '%s' "${value}" | sed "s/'/'\\\\''/g")"
+	done
+}
 
 # The build system breaks on PATH entries with spaces, which WSL inherits from Windows
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -35,8 +61,14 @@ fi
 for d in etc/init.d usr/libexec; do
 	[ -d "${FILES}/${d}" ] && chmod 755 "${FILES}/${d}"/*
 done
-# holds the dynamic DNS token until the first boot
-[ -f "${FILES}/etc/ddns.env" ] && chmod 600 "${FILES}/etc/ddns.env"
+
+# The settings travel in the image as /etc/build.env, which the first-boot scripts read
+write_env ${SETTINGS} > "${FILES}/etc/build.env"
+# The dynamic DNS settings are private and only stay there until the first boot
+if [ -n "${DDNS_PROVIDER}" ]; then
+	write_env DDNS_PROVIDER DDNS_HOST DDNS_USER DDNS_TOKEN > "${FILES}/etc/ddns.env"
+	chmod 600 "${FILES}/etc/ddns.env"
+fi
 
 # Packages from outside OpenWrt's feeds go into the folder the ImageBuilder
 # indexes by itself. The ones fetched last time are cleared first, so a changed
