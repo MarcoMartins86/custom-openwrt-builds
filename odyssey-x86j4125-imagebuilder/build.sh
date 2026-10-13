@@ -23,6 +23,21 @@ for name in ROUTER_NAME LAN_ADDRESS TIMEZONE WIFI_SSID VPN_PORT VPN_ADDRESS LUCI
 	eval "value=\${${name}}"
 	[ -n "${value}" ] || { echo "${name} is empty; set it in .env or private/.env" >&2; exit 1; }
 done
+# One image comes out per file system and boot method, so both have to be named
+for kind in ${IMAGE_KINDS}; do
+	case "${kind}" in
+		ext4|squashfs|efi|bios|targz) ;;
+		*) echo "IMAGE_KINDS: ${kind} is not one of ext4, squashfs, efi, bios, targz" >&2; exit 1 ;;
+	esac
+done
+case " ${IMAGE_KINDS} " in
+	*" ext4 "*|*" squashfs "*) ;;
+	*) echo "IMAGE_KINDS names no file system: ext4 or squashfs" >&2; exit 1 ;;
+esac
+case " ${IMAGE_KINDS} " in
+	*" efi "*|*" bios "*) ;;
+	*) echo "IMAGE_KINDS names no boot method: efi or bios" >&2; exit 1 ;;
+esac
 # Dynamic DNS is all or nothing
 if [ -n "${DDNS_PROVIDER}${DDNS_HOST}${DDNS_TOKEN}" ]; then
 	for name in DDNS_PROVIDER DDNS_HOST DDNS_TOKEN; do
@@ -45,6 +60,43 @@ export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 cd "${IB_DIR:-/builder}"
 # Newer containers ship a script that downloads the ImageBuilder on first use
 [ -d ./scripts ] || ./setup.sh
+
+# The ImageBuilder builds every kind of image its configuration has switched on.
+# Switches the option for one kind on when IMAGE_KINDS names it, and off when not.
+image_kind() {
+	case " ${IMAGE_KINDS} " in
+		*" $1 "*) sed -i -E "s/^(# )?CONFIG_$2[= ].*/CONFIG_$2=y/" .config ;;
+		*) sed -i -E "s/^(# )?CONFIG_$2[= ].*/# CONFIG_$2 is not set/" .config ;;
+	esac
+}
+image_kind ext4 TARGET_ROOTFS_EXT4FS
+image_kind squashfs TARGET_ROOTFS_SQUASHFS
+image_kind efi GRUB_EFI_IMAGES
+image_kind bios GRUB_IMAGES
+image_kind targz TARGET_ROOTFS_TARGZ
+
+# The ImageBuilder compresses each image on one core at gzip's highest level, which
+# takes longer than the rest of the build together. Level 6 comes within 1% of that
+# size in a third of the time, and pigz, where it is installed, uses every core.
+# Both write ordinary gzip files. The ImageBuilder takes its tools from
+# staging_dir/host/bin, so the stand-in goes there.
+COMPRESSOR="$(command -v pigz || command -v gzip)"
+mkdir -p staging_dir/host/bin
+cat > staging_dir/host/bin/gzip.new << EOF
+#!/bin/sh
+for arg in "\$@"; do
+	shift
+	case "\${arg}" in
+		--*) ;;
+		-*9*) arg="\$(printf '%s' "\${arg}" | tr 9 6)" ;;
+	esac
+	set -- "\$@" "\${arg}"
+done
+exec "${COMPRESSOR}" "\$@"
+EOF
+chmod 755 staging_dir/host/bin/gzip.new
+# mv replaces the link to the system's gzip, where writing to it would follow the link
+mv -f staging_dir/host/bin/gzip.new staging_dir/host/bin/gzip
 
 # files/ is public. private/files/ is not in the repo and holds what should stay
 # out of it, such as the SSH keys allowed to log in.
