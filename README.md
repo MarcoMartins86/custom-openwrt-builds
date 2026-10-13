@@ -53,13 +53,15 @@ docker compose run --rm imagebuilder
 ```
 
 The images land in `binaries/`, next to a `.manifest` listing every package and version that
-went in. The one to flash is `openwrt-*-ext4-combined-efi.img.gz`.
+went in. The one to flash is `openwrt-*-ext4-combined-efi.img.gz`. It is the only kind built
+unless `IMAGE_KINDS` asks for more.
 
 The container runs as user 1000. If that is not you, give it the folder first with
 `chown 1000 binaries`.
 
 Without Docker, extract the ImageBuilder for the release in `.env` and run
-`IB_DIR=/path/to/imagebuilder ./build.sh`.
+`IB_DIR=/path/to/imagebuilder ./build.sh`. Such a build compresses the images on every core
+when `pigz` is installed; the container does not have it and uses one.
 
 > **Note** A release keeps receiving package updates, so two builds some time apart can
 > differ in package versions. Compare the manifests to see what changed.
@@ -75,6 +77,7 @@ fork. The build writes the settings into the image, where the first-boot scripts
 | `OPENWRT_VERSION` | `25.12.5` | OpenWrt release to build |
 | `PROFILE` | `generic` | ImageBuilder profile |
 | `ROOTFS_PARTSIZE` | `2048` | Root partition size in MB |
+| `IMAGE_KINDS` | `ext4 efi` | Images to build: file systems `ext4` and `squashfs`, boot methods `efi` and `bios`, and `targz` for the root file system as an archive. One image per file system and boot method |
 | `ROUTER_NAME` | `odyssey` | Host name; the HTTPS certificate is issued to `<name>.lan` |
 | `LAN_ADDRESS` | `192.168.2.1/24` | The router's LAN address and the size of the network |
 | `TIMEZONE` | `Europe/Lisbon` | Time zone, by the name LuCI lists |
