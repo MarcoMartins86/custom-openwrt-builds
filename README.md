@@ -78,6 +78,7 @@ fork. The build writes the settings into the image, where the first-boot scripts
 | `ROUTER_NAME` | `odyssey` | Host name; the HTTPS certificate is issued to `<name>.lan` |
 | `LAN_ADDRESS` | `192.168.2.1/24` | The router's LAN address and the size of the network |
 | `TIMEZONE` | `Europe/Lisbon` | Time zone, by the name LuCI lists |
+| `WAN_DNS_CLIENTS` | empty | Network on the WAN side whose devices may use the router's DNS; empty keeps DNS closed there |
 | `WIFI_SSID` | `odyssey-admin` | Name of the Wi-Fi network that is kept switched off |
 | `VPN_PORT` | `51820` | UDP port of the WireGuard server |
 | `VPN_ADDRESS` | `10.8.0.1/24` | The server's address in the range VPN devices get |
@@ -203,6 +204,11 @@ the root partition grow later without moving the data.
   it; pick another in LuCI under System → System → Language and Style. Argon's login page
   keeps a local background; its online wallpapers can be switched on under System → Argon
   Config.
+- **Behind another router**: its devices do not pass through this one, but they can still
+  use its DNS and get the ad blocking. Set `WAN_DNS_CLIENTS` to their network and make the
+  other router hand out this router's WAN address as DNS server. Nothing forces them to use
+  it: a device that brings its own DNS, or takes the one the other router announces over
+  IPv6, goes around it.
 - **DNS root keys**: `files/etc/unbound/root.key` holds the keys unbound trusts for DNSSEC,
   taken from [IANA](https://data.iana.org/root-anchors/root-anchors.xml). The copy in
   OpenWrt's package lacks the key the root zone is signed with since 11 October 2026, and
