@@ -26,11 +26,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Read the release
+        id: release
+        run: echo "version=$(sed -n 's/^OPENWRT_VERSION=//p' .env)" >> "$GITHUB_OUTPUT"
+
+      # The packages an earlier run downloaded for the same release. The package
+      # index still decides which versions go in. GitHub drops a cache that has not
+      # been used for a week.
+      - name: Restore the package downloads
+        uses: actions/cache@v4
+        with:
+          path: odyssey-x86j4125-imagebuilder/dl
+          key: dl-${{ steps.release.outputs.version }}-${{ hashFiles('odyssey-x86j4125-imagebuilder/packages.txt') }}
+          restore-keys: dl-${{ steps.release.outputs.version }}-
+
       - name: Build
         # The ImageBuilder container runs as user 1000, the runner as someone else
         run: |
-          mkdir -p binaries
-          chmod 777 binaries
+          mkdir -p binaries dl
+          chmod -R a+rwX binaries dl
           docker compose run --rm imagebuilder
 
       - name: Install QEMU

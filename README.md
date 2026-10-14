@@ -54,14 +54,17 @@ docker compose run --rm imagebuilder
 
 The images land in `binaries/`, next to a `.manifest` listing every package and version that
 went in. The one to flash is `openwrt-*-ext4-combined-efi.img.gz`. It is the only kind built
-unless `IMAGE_KINDS` asks for more.
+unless `IMAGE_KINDS` asks for more. The downloaded packages stay in `dl/`, so the next build
+only downloads what changed; the folder can be deleted at any time.
 
-The container runs as user 1000. If that is not you, give it the folder first with
-`chown 1000 binaries`.
+The container runs as user 1000. If that is not you, give it the folders first with
+`mkdir -p dl && chown 1000 binaries dl`.
 
 Without Docker, extract the ImageBuilder for the release in `.env` and run
-`IB_DIR=/path/to/imagebuilder ./build.sh`. Such a build compresses the images on every core
-when `pigz` is installed; the container does not have it and uses one.
+`IB_DIR=/path/to/imagebuilder ./build.sh`.
+
+The images are compressed with `pigz`, on every core. Where it is missing, as in OpenWrt's
+container, `build.sh` builds it from its source once and keeps it in `dl/`.
 
 > **Note** A release keeps receiving package updates, so two builds some time apart can
 > differ in package versions. Compare the manifests to see what changed.
