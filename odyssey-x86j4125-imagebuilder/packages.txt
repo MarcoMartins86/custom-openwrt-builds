@@ -16,6 +16,7 @@ kmod-ikconfig                          # the kernel's build settings, in /proc/c
 kmod-ata-ahci kmod-sdhci kmod-loop kmod-scsi-cdrom kmod-scsi-generic
 kmod-fs-ext4 kmod-fs-exfat kmod-fs-ntfs3 kmod-fs-cifs kmod-fs-configfs kmod-fs-efivarfs kmod-fuse
 fdisk lsblk parted mount-utils         # 11-data_partition needs lsblk and parted
+fstrim                                 # weekly TRIM of the SSD, see 99-fstrim_config
 
 # --- USB
 kmod-usb3 kmod-usb-hid kmod-usb-storage-uas kmod-usb-ledtrig-usbport

@@ -1,0 +1,10 @@
+# An SSD is not told when files are deleted, so it keeps carrying their old data
+# around until the filesystem hands it the list of free space (TRIM). Most systems
+# do that once a week, at night. Only for a disk that takes TRIM at all.
+BOOT="$(sed -n -e "\|\s/boot\s.*$|{s///p;q}" /etc/mtab)"
+DISK="$(lsblk -n -o PKNAME "${BOOT}")"
+CRON="/etc/crontabs/root"
+[ -f "${CRON}" ] && sed -i '/fstrim/d' "${CRON}"
+if [ "$(cat "/sys/block/${DISK}/queue/discard_max_bytes" 2> /dev/null || echo 0)" -gt 0 ]; then
+	echo '30 3 * * 0 for fs in / /mnt/data; do fstrim -v "$fs"; done 2>&1 | logger -t fstrim' >> "${CRON}"
+fi

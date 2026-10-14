@@ -65,7 +65,7 @@ qemu-system-x86_64 \
 	-machine q35 $ACCEL -smp 4 -m ${MEM:-2048} \
 	-drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
 	-drive if=pflash,format=raw,file=vars.fd \
-	-drive file=disk.img,format=raw,if=none,id=d0 $DISK \
+	-drive file=disk.img,format=raw,if=none,id=d0,discard=unmap $DISK \
 	-netdev "$LANDEV" \
 	-device pcie-root-port,id=rp1,chassis=1 -device igb,netdev=lan,bus=rp1,mac=52:54:00:00:02:01 \
 	-netdev user,id=wan \

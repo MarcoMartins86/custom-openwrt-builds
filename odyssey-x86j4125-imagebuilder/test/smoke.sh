@@ -36,6 +36,7 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'[ $i -lt 15 ] || f="$f vpn-not-listening"' \
 	'/etc/init.d/compose enabled || f="$f containers-not-enabled"' \
 	'grep -q "initrd /boot/intel-ucode.img" /boot/grub/grub.cfg || f="$f microcode"' \
+	'grep -q fstrim /etc/crontabs/root && fstrim / && fstrim /mnt/data || f="$f trim"' \
 	'[ -z "'"${CONTAINER_UPDATE_DAY}"'" ] || grep -q "compose update" /etc/crontabs/root || f="$f no-container-update"' \
 	'if [ -z "$f" ]; then echo "SMOKE PASS"; else echo "SMOKE FAIL:$f"; fi')"
 echo "$OUT" | grep -E '^SMOKE (PASS|FAIL)'
