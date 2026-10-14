@@ -36,7 +36,7 @@ jobs:
       # index still decides which versions go in. GitHub drops a cache that has not
       # been used for a week.
       - name: Restore the package downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: odyssey-x86j4125-imagebuilder/dl
           key: dl-${{ steps.release.outputs.version }}-${{ hashFiles('odyssey-x86j4125-imagebuilder/packages.txt') }}
