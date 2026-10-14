@@ -34,7 +34,8 @@ kmod-iwlwifi iwlwifi-firmware-iwl9000 wpad-openssl iwinfo
 # --- DNS and DHCP: unbound and the full odhcpd instead of dnsmasq
 -dnsmasq -odhcpd-ipv6only odhcpd
 unbound-control luci-app-unbound
-luci-app-adblock tcpdump-mini          # tcpdump is what adblock's DNS report captures with
+luci-app-adblock tcpdump               # adblock's DNS report captures with tcpdump; tcpdump-mini
+                                       # cannot read a capture taken on every interface
 
 # --- Firewall and network
 luci-app-banip
