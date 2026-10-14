@@ -204,6 +204,10 @@ It uploads the image, checks it, and upgrades the router over SSH. Docker is sto
 so that containers shut down cleanly; they start again by themselves after the flash. The
 SSH key and known-hosts file come from `private/.env`, see [Settings](#settings).
 
+Before that it saves a backup of the router's whole configuration to `private/backups/`, the
+last five per router. To go back, flash the previous image and restore the backup with
+`sysupgrade -r <file>` on the router, or in LuCI under System → Backup / Flash Firmware.
+
 What a flash keeps and what it replaces:
 
 | | |

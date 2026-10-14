@@ -6,7 +6,8 @@
 # HTTPS certificate, the VPN key with the devices allowed to connect, and whatever
 # the first-boot scripts keep under /etc/odyssey.
 # Its configuration is not kept; the first-boot scripts regenerate it. The data
-# partition is left alone.
+# partition is left alone. A backup of the whole configuration is saved first, to
+# private/backups/ on this machine.
 # https://openwrt.org/docs/guide-user/installation/generic.sysupgrade
 #
 # usage: flash.sh [-y] [image.img.gz]
@@ -71,6 +72,19 @@ done
 tar czf /tmp/identity.tar.gz -C / $KEEP
 sysupgrade -T -f /tmp/identity.tar.gz /tmp/firmware.img.gz
 '
+
+# The whole configuration as the router has it now, in the format LuCI's backup uses,
+# in case the old image has to come back with it. The last five per router are kept.
+BACKUPS="${HERE}/private/backups"
+BACKUP="${BACKUPS}/${ROUTER}-$(date +%Y%m%d-%H%M%S).tar.gz"
+(
+	umask 077
+	mkdir -p "${BACKUPS}"
+	router 'sysupgrade -b -' > "${BACKUP}"
+)
+tar tzf "${BACKUP}" > /dev/null 2>&1 || { echo "the backup did not come through" >&2; rm -f "${BACKUP}"; exit 1; }
+echo "Configuration saved to private/backups/$(basename "${BACKUP}")"
+ls -1t "${BACKUPS}/${ROUTER}-"*.tar.gz | tail -n +6 | xargs -r rm -f
 
 if [ -z "${YES}" ]; then
 	printf "Flash %s now? Its network will be down for a few minutes. [y/N] " "${ROUTER}"
