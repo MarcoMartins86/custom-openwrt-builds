@@ -160,6 +160,26 @@ To look around by hand, `test/start.sh` starts the same virtual router and
 `test/ser.py sh 60 '<command>'` runs a command on its console. SSH is forwarded to port 2222
 and LuCI to port 8080 on `127.0.0.1`.
 
+### Checks and updates
+
+Every pull request, and every change to `main`, is built on GitHub with the settings in
+`.env` and booted for `test/smoke.sh` ([build.yml](.github/workflows/build.yml)). That build
+uses no secrets, so its image has none of the private settings; the image to flash is built
+on your own machine as above. The run keeps the image's package list and the console of the
+test boot.
+
+[Renovate](https://docs.renovatebot.com/) opens a pull request when a new OpenWrt release
+has its ImageBuilder container, and when the build's GitHub actions get new versions, so
+every update is built and tested before it is merged ([renovate.json](renovate.json)). It
+needs the [Renovate app](https://github.com/apps/renovate) installed on the repository.
+
+- A new release of a package in `extra-packages.txt` only shows up on Renovate's dependency
+  dashboard, an issue it keeps open in the repository. The file names and checksums change
+  with it and have to be filled in by hand, so its pull request is opened from there when
+  wanted.
+- Home Assistant is not tracked. It follows its `stable` tag, and the router moves to the
+  newest image once a month (see [Containers](#containers)).
+
 ### Flash
 
 For a router already running this image:

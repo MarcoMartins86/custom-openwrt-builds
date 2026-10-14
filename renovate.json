@@ -1,0 +1,44 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "The OpenWrt release in .env and in the README. It names the ImageBuilder container, so a release only counts once its container is published.",
+      "managerFilePatterns": ["/^odyssey-x86j4125-imagebuilder/\\.env$/", "/^README\\.md$/"],
+      "matchStrings": [
+        "OPENWRT_VERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)",
+        "\\| `OPENWRT_VERSION` \\| `(?<currentValue>\\d+\\.\\d+\\.\\d+)` \\|"
+      ],
+      "depNameTemplate": "openwrt",
+      "packageNameTemplate": "ghcr.io/openwrt/imagebuilder",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^x86-64-v(?<version>\\d+\\.\\d+\\.\\d+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Packages downloaded from GitHub releases in extra-packages.txt",
+      "managerFilePatterns": ["/^odyssey-x86j4125-imagebuilder/extra-packages\\.txt$/"],
+      "matchStrings": [
+        "https://github\\.com/(?<depName>[^/\\s]+/[^/\\s]+)/releases/download/(?<currentValue>[^/\\s]+)/"
+      ],
+      "datasourceTemplate": "github-releases"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "A new release of an extra package also changes its file names and checksums, which Renovate cannot fill in. It waits on the dependency dashboard until its pull request is asked for there.",
+      "matchFileNames": ["odyssey-x86j4125-imagebuilder/extra-packages.txt"],
+      "dependencyDashboardApproval": true,
+      "prBodyNotes": [
+        "Renovate only changes the release in the URLs. Put in the new file names and their SHA-256 before merging."
+      ]
+    },
+    {
+      "description": "Home Assistant follows its stable tag, and the router moves to the newest image once a month (CONTAINER_UPDATE_DAY)",
+      "matchDepNames": ["ghcr.io/home-assistant/home-assistant"],
+      "enabled": false
+    }
+  ]
+}
