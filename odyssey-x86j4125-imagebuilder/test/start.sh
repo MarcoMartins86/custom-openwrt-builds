@@ -1,11 +1,13 @@
 #!/bin/sh
 # Boot the built image in QEMU, to test the first-boot scripts without the hardware.
-# Uses KVM when available, otherwise plain emulation (slower, still under a minute).
+# The VM emulates the router's own processor, so that it boots the same on every host.
 # Serial console: serial.sock (log: serial.log), driven by ser.py.
 # SSH and LuCI's HTTP port are forwarded to 127.0.0.1:2222 and 127.0.0.1:8080.
 #
 # usage: [IMG=path] [MEM=megabytes] [KEEP=1] [LAN=slirp|dgram] start.sh [disk-size] [sata|nvme|mmc]
 #   KEEP=1     reuse the existing disk instead of starting from a fresh copy of the image
+#   CPU=host   hand the host's processor to the VM through KVM, where there is KVM: faster,
+#              but the first boot then differs between hosts (see below)
 #   LAN=dgram  wire the lan NIC to lan.sock/lan-peer.sock for dhcp_probe.py
 set -e
 Q="$(cd "$(dirname "$0")" && pwd)"
@@ -32,10 +34,15 @@ if [ -z "$KEEP" ] || [ ! -f disk.img ]; then
 	cp /usr/share/OVMF/OVMF_VARS_4M.fd vars.fd
 fi
 
-if [ -w /dev/kvm ]; then
+# The router has an Intel Celeron J4125. QEMU's nearest model, given that chip's
+# family, model and stepping, makes the first boot find the router's microcode and
+# restart once to load it, as on the router. With the host's processor that restart
+# would depend on the host: Intel or AMD, and whether microcode exists for it. The
+# features at the end are ones QEMU's emulator cannot provide.
+if [ "${CPU}" = host ] && [ -w /dev/kvm ]; then
 	ACCEL="-accel kvm -cpu host"
 else
-	ACCEL="-accel tcg,thread=multi -cpu max"
+	ACCEL="-accel tcg,thread=multi -cpu Denverton,family=6,model=122,stepping=8,-tsc-deadline,-spec-ctrl,-arch-capabilities,-ssbd,-xsavec"
 fi
 
 case "$BUS" in

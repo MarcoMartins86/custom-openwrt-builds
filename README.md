@@ -157,7 +157,9 @@ partition.
 ### Test
 
 `test/smoke.sh` boots the built image in QEMU and checks that the first boot did its job.
-It needs `qemu-system-x86` and `ovmf`, and exits with 0 when every check passes.
+It needs `qemu-system-x86` and `ovmf`, and exits with 0 when every check passes. The virtual
+router emulates the real one's processor, so its first boot also prepares the processor's
+microcode and restarts once, as the router does after a flash.
 
 To look around by hand, `test/start.sh` starts the same virtual router and
 `test/ser.py sh 60 '<command>'` runs a command on its console. SSH is forwarded to port 2222
