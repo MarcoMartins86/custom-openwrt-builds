@@ -22,6 +22,29 @@ commit dropbear
 ${THEME:+set luci.main.mediaurlbase='/luci-static/${THEME}'}
 commit luci
 EOI
+# Without IPv6 the router neither asks the WAN side for it nor hands out addresses
+# on the LAN, not even the local ones OpenWrt makes up when the WAN side has none
+if [ "${IPV6}" != 1 ]; then
+	. /lib/functions.sh
+	wan_zone() {
+		[ "$(uci -q get firewall."$1".name)" = wan ] && uci -q del_list firewall."$1".network="wan6"
+	}
+	config_load firewall
+	config_foreach wan_zone zone
+	uci -q batch << EOI
+delete network.wan6
+delete network.globals.ula_prefix
+delete network.lan.ip6assign
+commit network
+commit firewall
+delete dhcp.lan.ra
+delete dhcp.lan.ra_flags
+delete dhcp.lan.ra_slaac
+delete dhcp.lan.dhcpv6
+delete dhcp.lan.ndp
+commit dhcp
+EOI
+fi
 # A certificate carried across a reflash keeps its old name and expiry date.
 # Remove it when either is wrong and the web server creates a fresh one.
 if [ -s /etc/uhttpd.crt ]; then
