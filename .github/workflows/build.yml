@@ -18,7 +18,9 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    # Ubuntu 26.04 brings QEMU 10. With 24.04's QEMU 8.2 the emulated router processor
+    # takes minutes to start the kernel once the microcode is in place.
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     defaults:
       run:
