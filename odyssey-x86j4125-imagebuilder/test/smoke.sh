@@ -29,6 +29,7 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'[ -z "'"${GUEST_SHARE}"'" ] || [ -d /mnt/data/share ] || f="$f share-folder"' \
 	'for s in dropbear uhttpd odhcpd; do /etc/init.d/$s running || f="$f $s-not-running"; done' \
 	'[ "$(uci -q get network.lan.ipaddr)" = '"${LAN_ADDRESS}"' ] || f="$f lan-address"' \
+	'[ "'"${IPV6}"'" = 1 ] || [ -z "$(ip -6 addr show dev br-lan scope global)" ] || f="$f lan-ipv6"' \
 	'i=0; while [ $i -lt 15 ] && [ "$(wg show wg0 listen-port 2>/dev/null)" != '"${VPN_PORT}"' ]; do sleep 2; i=$((i+1)); done' \
 	'[ $i -lt 15 ] || f="$f vpn-not-listening"' \
 	'/etc/init.d/compose enabled || f="$f containers-not-enabled"' \

@@ -16,16 +16,21 @@ config_foreach luci_interface interface
 uci -q batch << EOI
 set network.globals.packet_steering="1"
 set network.wan.sendclientid="auto"
+delete dhcp.lan.ra_slaac
+set dhcp.lan.ipv6_only_preferred="0"
+delete dhcp.lan.domain
+add_list dhcp.lan.domain="lan"
+EOI
+# The same for IPv6, where it is on (IPV6 in .env)
+if uci -q get network.wan6 > /dev/null; then
+	uci -q batch << EOI
 set network.wan6.reqaddress="try"
 set network.wan6.reqprefix="auto"
 set network.wan6.sendclientid="auto"
 set network.wan6.norelease="0"
-delete dhcp.lan.ra_slaac
-set dhcp.lan.ipv6_only_preferred="0"
-set dhcp.lan.ra_preference="medium"
-delete dhcp.lan.domain
-add_list dhcp.lan.domain="lan"
 EOI
+fi
+[ "$(uci -q get dhcp.lan.ra)" = server ] && uci -q set dhcp.lan.ra_preference="medium"
 
 # Network → Firewall: the old name of the SYN flood switch, and every rule
 luci_rule() {

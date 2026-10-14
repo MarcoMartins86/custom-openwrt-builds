@@ -13,7 +13,7 @@ What the router does once flashed:
 
 | Area | Setup | Configured in |
 |---|---|---|
-| Network | LAN `192.168.2.1/24` on the first port, WAN by DHCP on the second | `99-uci_config` |
+| Network | LAN `192.168.2.1/24` on the first port, WAN by DHCP on the second, IPv6 off | `99-uci_config` |
 | DNS and DHCP | unbound with DNSSEC, odhcpd, local names under `.lan` | `99-unbound_config` |
 | Ad blocking | adblock on unbound, lists refreshed every night, DNS forced through the router, DNS over TLS to outside cut off, DNS report for every network | `99-adblock_config` |
 | Firewall | OpenWrt's firewall plus banIP blocklists | `99-banip_config` |
@@ -80,6 +80,7 @@ fork. The build writes the settings into the image, where the first-boot scripts
 | `IMAGE_KINDS` | `ext4 efi` | Images to build: file systems `ext4` and `squashfs`, boot methods `efi` and `bios`, and `targz` for the root file system as an archive. One image per file system and boot method |
 | `ROUTER_NAME` | `odyssey` | Host name; the HTTPS certificate is issued to `<name>.lan` |
 | `LAN_ADDRESS` | `192.168.2.1/24` | The router's LAN address and the size of the network |
+| `IPV6` | `0` | `1` keeps OpenWrt's IPv6 on the WAN and the LAN; `0` switches it off, for a connection without IPv6 |
 | `TIMEZONE` | `Europe/Lisbon` | Time zone, by the name LuCI lists |
 | `WAN_DNS_CLIENTS` | empty | Network on the WAN side whose devices may use the router's DNS; empty keeps DNS closed there |
 | `WIFI_SSID` | `odyssey-admin` | Name of the Wi-Fi network that is kept switched off |
