@@ -11,19 +11,26 @@ import socket
 import sys
 import time
 
-SOCK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "serial.sock")
+HERE = os.path.dirname(os.path.abspath(__file__))
+# Opened from its own folder: a socket path may not be longer than 107 bytes,
+# and a checkout can sit deeper than that (GitHub's runners do)
+SOCK = "serial.sock"
 ANSI = re.compile(rb"\x1b\[[0-9;?]*[A-Za-z]|\x1b[()][A-Z0-9]|\r")
+# Kernel messages share the console and can land in the middle of a command's
+# output, right behind its end marker for one. They are left out of that output.
+KMSG = re.compile(rb"\[ *[0-9]+\.[0-9]+\] [^\n]*\n")
 PROMPT = rb"root@[^:\n]+:[^\n]*# $"
 
 
-def clean(data):
-    return ANSI.sub(b"", data).decode("utf-8", "replace")
+def clean(data, kmsg=False):
+    data = ANSI.sub(b"", data)
+    return (KMSG.sub(b"", data) if kmsg else data).decode("utf-8", "replace")
 
 
-def read_until(sock, regex, deadline, buf=b""):
+def read_until(sock, regex, deadline, buf=b"", kmsg=False):
     rx = re.compile(regex, re.M)
     while True:
-        m = rx.search(ANSI.sub(b"", buf))
+        m = rx.search(clean(buf, kmsg).encode())
         if m:
             return buf, True
         left = deadline - time.time()
@@ -38,6 +45,7 @@ def read_until(sock, regex, deadline, buf=b""):
 
 def main():
     mode, timeout, args = sys.argv[1], float(sys.argv[2]), sys.argv[3:]
+    os.chdir(HERE)
     sock = socket.socket(socket.AF_UNIX)
     sock.connect(SOCK)
     deadline = time.time() + timeout
@@ -63,8 +71,8 @@ def main():
         end = f"__END_{n}__"
         # the quotes keep the echoed command line from matching the marker
         sock.sendall(f'{cmd}; echo "__E""ND_{n}__"\n'.encode())
-        buf, ok = read_until(sock, end.encode() + rb"\s", deadline)
-        out = clean(buf)
+        buf, ok = read_until(sock, end.encode(), deadline, kmsg=True)
+        out = clean(buf, kmsg=True)
         out = out.split("\n", 1)[1] if "\n" in out else out
         print(f"### {cmd}")
         print(out.split(end)[0].rstrip() if ok else out + "\n[TIMEOUT]")

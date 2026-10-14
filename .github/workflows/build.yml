@@ -1,0 +1,72 @@
+# Builds the image with the public settings in .env and boots it in QEMU for the smoke
+# test, on every pull request and every change to main. It uses no secrets: the image to
+# flash, with the settings in private/.env, is built on your own machine.
+name: Build and test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: odyssey-x86j4125-imagebuilder
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the release
+        id: release
+        run: echo "version=$(sed -n 's/^OPENWRT_VERSION=//p' .env)" >> "$GITHUB_OUTPUT"
+
+      # The packages an earlier run downloaded for the same release. The package
+      # index still decides which versions go in. GitHub drops a cache that has not
+      # been used for a week.
+      - name: Restore the package downloads
+        uses: actions/cache@v4
+        with:
+          path: odyssey-x86j4125-imagebuilder/dl
+          key: dl-${{ steps.release.outputs.version }}-${{ hashFiles('odyssey-x86j4125-imagebuilder/packages.txt') }}
+          restore-keys: dl-${{ steps.release.outputs.version }}-
+
+      - name: Build
+        # The ImageBuilder container runs as user 1000, the runner as someone else
+        run: |
+          mkdir -p binaries dl
+          chmod -R a+rwX binaries dl
+          docker compose run --rm imagebuilder
+
+      - name: Install QEMU
+        # The runners have KVM, but only root may use it until this rule opens it up
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils ovmf
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+            sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Smoke test
+        run: sh test/smoke.sh
+
+      # The package list, to see what an update changed, and the console of the test boot
+      - name: Keep the manifest and the console log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manifest-and-console
+          path: |
+            odyssey-x86j4125-imagebuilder/binaries/*.manifest
+            odyssey-x86j4125-imagebuilder/test/serial.log
+          if-no-files-found: ignore

@@ -54,14 +54,17 @@ docker compose run --rm imagebuilder
 
 The images land in `binaries/`, next to a `.manifest` listing every package and version that
 went in. The one to flash is `openwrt-*-ext4-combined-efi.img.gz`. It is the only kind built
-unless `IMAGE_KINDS` asks for more.
+unless `IMAGE_KINDS` asks for more. The downloaded packages stay in `dl/`, so the next build
+only downloads what changed; the folder can be deleted at any time.
 
-The container runs as user 1000. If that is not you, give it the folder first with
-`chown 1000 binaries`.
+The container runs as user 1000. If that is not you, give it the folders first with
+`mkdir -p dl && chown 1000 binaries dl`.
 
 Without Docker, extract the ImageBuilder for the release in `.env` and run
-`IB_DIR=/path/to/imagebuilder ./build.sh`. Such a build compresses the images on every core
-when `pigz` is installed; the container does not have it and uses one.
+`IB_DIR=/path/to/imagebuilder ./build.sh`.
+
+The images are compressed with `pigz`, on every core. Where it is missing, as in OpenWrt's
+container, `build.sh` builds it from its source once and keeps it in `dl/`.
 
 > **Note** A release keeps receiving package updates, so two builds some time apart can
 > differ in package versions. Compare the manifests to see what changed.
@@ -159,6 +162,26 @@ It needs `qemu-system-x86` and `ovmf`, and exits with 0 when every check passes.
 To look around by hand, `test/start.sh` starts the same virtual router and
 `test/ser.py sh 60 '<command>'` runs a command on its console. SSH is forwarded to port 2222
 and LuCI to port 8080 on `127.0.0.1`.
+
+### Checks and updates
+
+Every pull request, and every change to `main`, is built on GitHub with the settings in
+`.env` and booted for `test/smoke.sh` ([build.yml](.github/workflows/build.yml)). That build
+uses no secrets, so its image has none of the private settings; the image to flash is built
+on your own machine as above. The run keeps the image's package list and the console of the
+test boot.
+
+[Renovate](https://docs.renovatebot.com/) opens a pull request when a new OpenWrt release
+has its ImageBuilder container, and when the build's GitHub actions get new versions, so
+every update is built and tested before it is merged ([renovate.json](renovate.json)). It
+needs the [Renovate app](https://github.com/apps/renovate) installed on the repository.
+
+- A new release of a package in `extra-packages.txt` only shows up on Renovate's dependency
+  dashboard, an issue it keeps open in the repository. The file names and checksums change
+  with it and have to be filled in by hand, so its pull request is opened from there when
+  wanted.
+- Home Assistant is not tracked. It follows its `stable` tag, and the router moves to the
+  newest image once a month (see [Containers](#containers)).
 
 ### Flash
 

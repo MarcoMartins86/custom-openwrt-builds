@@ -86,12 +86,48 @@ image_kind efi GRUB_EFI_IMAGES
 image_kind bios GRUB_IMAGES
 image_kind targz TARGET_ROOTFS_TARGZ
 
+# Downloaded packages are kept in dl/ next to this script, so that the next build
+# only downloads what changed. The package index still decides which versions go
+# in, and every file is checked against it. In the container the ImageBuilder's
+# own dl/ starts out missing every time; one that exists, as in an ImageBuilder
+# extracted by hand, is left as it is. So is everything when that folder cannot
+# be written.
+if [ ! -e dl ] && mkdir -p "${HERE}/dl" 2> /dev/null && [ -w "${HERE}/dl" ]; then
+	ln -s "${HERE}/dl" dl
+fi
+
 # The ImageBuilder compresses each image on one core at gzip's highest level, which
 # takes longer than the rest of the build together. Level 6 comes within 1% of that
-# size in a third of the time, and pigz, where it is installed, uses every core.
-# Both write ordinary gzip files. The ImageBuilder takes its tools from
-# staging_dir/host/bin, so the stand-in goes there.
-COMPRESSOR="$(command -v pigz || command -v gzip)"
+# size in a third of the time, and pigz uses every core. Both write ordinary gzip
+# files.
+#
+# OpenWrt's container has no pigz, but it has a compiler. Where pigz is missing it
+# is built from its source, checked against this checksum, and kept in dl/ for the
+# builds after. When that does not work, gzip compresses on one core.
+PIGZ_VERSION=2.8
+PIGZ_SHA256=2f7f6a6986996d21cb8658535fff95f1c7107ddce22b5324f4b41890e2904706
+PIGZ="$(pwd)/dl/pigz-${PIGZ_VERSION}/pigz"
+build_pigz() {
+	local src rc
+	src="$(mktemp -d)"
+	wget -q -O "${src}/pigz.tar.gz" "https://github.com/madler/pigz/archive/refs/tags/v${PIGZ_VERSION}.tar.gz" &&
+		echo "${PIGZ_SHA256}  ${src}/pigz.tar.gz" | sha256sum -c - > /dev/null &&
+		tar xzf "${src}/pigz.tar.gz" -C "${src}" &&
+		make -s -C "${src}/pigz-${PIGZ_VERSION}" > /dev/null 2>&1 &&
+		mkdir -p "${PIGZ%/*}" &&
+		cp "${src}/pigz-${PIGZ_VERSION}/pigz" "${PIGZ}"
+	rc=$?
+	rm -rf "${src}"
+	return "${rc}"
+}
+COMPRESSOR="$(command -v pigz || true)"
+if [ -z "${COMPRESSOR}" ] && [ -w dl/ ] && command -v cc > /dev/null && command -v make > /dev/null; then
+	"${PIGZ}" --version > /dev/null 2>&1 || build_pigz || echo "pigz could not be built; gzip compresses on one core" >&2
+	"${PIGZ}" --version > /dev/null 2>&1 && COMPRESSOR="${PIGZ}"
+fi
+COMPRESSOR="${COMPRESSOR:-$(command -v gzip)}"
+echo "Compressing with ${COMPRESSOR}"
+# The ImageBuilder takes its tools from staging_dir/host/bin, so the stand-in goes there
 mkdir -p staging_dir/host/bin
 cat > staging_dir/host/bin/gzip.new << EOF
 #!/bin/sh
