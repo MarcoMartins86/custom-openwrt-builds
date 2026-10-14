@@ -1,4 +1,5 @@
 # https://openwrt.org/docs/guide-user/virtualization/docker_host
+. /etc/build.env
 # Docker keeps its images and containers on the data partition; without it,
 # stay off rather than fill the root filesystem.
 if grep -q " /mnt/data " /proc/mounts; then
@@ -33,6 +34,12 @@ commit firewall
 EOI
 	# brings up the containers defined in /etc/compose
 	/etc/init.d/compose enable
+	# and moves them to newer images once a month
+	CRON="/etc/crontabs/root"
+	[ -f "${CRON}" ] && sed -i '\|/etc/init.d/compose update|d' "${CRON}"
+	if [ -n "${CONTAINER_UPDATE_DAY}" ]; then
+		echo "0 4 ${CONTAINER_UPDATE_DAY} * * /etc/init.d/compose update" >> "${CRON}"
+	fi
 else
 	/etc/init.d/dockerd disable
 	/etc/init.d/compose disable

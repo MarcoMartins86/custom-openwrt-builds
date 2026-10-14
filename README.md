@@ -97,6 +97,7 @@ fork. The build writes the settings into the image, where the first-boot scripts
 | `GUEST_SHARE` | `share` | Network name of the open SMB folder; empty switches file sharing off |
 | `HOME_ASSISTANT` | `1` | Home Assistant as a container; `0` leaves it out |
 | `ZIGBEE_DEVICE` | `/dev/ttyUSB0` | Zigbee stick handed to Home Assistant; empty for none |
+| `CONTAINER_UPDATE_DAY` | `15` | Day of the month on which the containers get their newest images; empty for never |
 | `LUCI_THEME` | `argon` | Theme LuCI starts with |
 
 Private settings, which only make sense in `private/.env`:
@@ -144,8 +145,11 @@ partition. It is handed the Zigbee stick named in `ZIGBEE_DEVICE` and does not s
 that device is missing; with the setting empty it runs without one. `HOME_ASSISTANT=0`
 leaves it out altogether.
 
-Nothing updates by itself. `/etc/init.d/compose update` downloads newer images and
-recreates the containers that use them.
+Once a month, on the day in `CONTAINER_UPDATE_DAY` at 04:00, `/etc/init.d/compose update`
+downloads the newest images of the projects' tags and recreates the containers that use
+them; it also works by hand. The image an update replaces stays for about two months, to
+go back to. A restart or a flash updates nothing, as the images are kept on the data
+partition.
 
 ### Test
 
