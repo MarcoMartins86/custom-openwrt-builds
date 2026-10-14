@@ -17,12 +17,18 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 # What the first-boot scripts get to know. Anything else in the two files stays
 # on this side of the build.
 SETTINGS="ROUTER_NAME LAN_ADDRESS TIMEZONE WAN_DNS_CLIENTS WIFI_SSID VPN_PORT VPN_ADDRESS
-	ADBLOCK_FEEDS ADBLOCK_UTC_CATEGORIES ADBLOCK_MAP BANIP_FEEDS GUEST_SHARE
-	HOME_ASSISTANT ZIGBEE_DEVICE LUCI_THEME"
+	ADBLOCK_FEEDS ADBLOCK_HAGEZI_CATEGORIES ADBLOCK_STEVENBLACK_CATEGORIES
+	ADBLOCK_UTCAPITOLE_CATEGORIES ADBLOCK_REFRESH_HOUR ADBLOCK_REPORT_MB ADBLOCK_MAP
+	BANIP_FEEDS GUEST_SHARE HOME_ASSISTANT ZIGBEE_DEVICE LUCI_THEME"
 for name in ROUTER_NAME LAN_ADDRESS TIMEZONE WIFI_SSID VPN_PORT VPN_ADDRESS LUCI_THEME; do
 	eval "value=\${${name}}"
 	[ -n "${value}" ] || { echo "${name} is empty; set it in .env or private/.env" >&2; exit 1; }
 done
+# LuCI accepts at most 10 capture files of 10 MB each for adblock's report
+case "${ADBLOCK_REPORT_MB}" in
+	10|20|30|40|50|60|70|80|90|100) ;;
+	*) echo "ADBLOCK_REPORT_MB has to be 10 to 100, in steps of 10" >&2; exit 1 ;;
+esac
 # One image comes out per file system and boot method, so both have to be named
 for kind in ${IMAGE_KINDS}; do
 	case "${kind}" in

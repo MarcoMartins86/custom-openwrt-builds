@@ -15,7 +15,7 @@ What the router does once flashed:
 |---|---|---|
 | Network | LAN `192.168.2.1/24` on the first port, WAN by DHCP on the second | `99-uci_config` |
 | DNS and DHCP | unbound with DNSSEC, odhcpd, local names under `.lan` | `99-unbound_config` |
-| Ad blocking | adblock on unbound, DNS forced through the router, DNS report | `99-adblock_config` |
+| Ad blocking | adblock on unbound, lists refreshed every night, DNS forced through the router, DNS over TLS to outside cut off, DNS report for every network | `99-adblock_config` |
 | Firewall | OpenWrt's firewall plus banIP blocklists | `99-banip_config` |
 | Containers | Docker, with OpenWrt's firewall as the only firewall | `99-docker_config` |
 | Home automation | Home Assistant as a container, with a Zigbee stick | `99-homeassistant_config` |
@@ -85,8 +85,12 @@ fork. The build writes the settings into the image, where the first-boot scripts
 | `WIFI_SSID` | `odyssey-admin` | Name of the Wi-Fi network that is kept switched off |
 | `VPN_PORT` | `51820` | UDP port of the WireGuard server |
 | `VPN_ADDRESS` | `10.8.0.1/24` | The server's address in the range VPN devices get |
-| `ADBLOCK_FEEDS` | 25 feeds | Adblock's blocklists |
-| `ADBLOCK_UTC_CATEGORIES` | ads and security | Categories taken from the utcapitole feed |
+| `ADBLOCK_FEEDS` | 17 feeds | Adblock's blocklists. Adblock merges them into one list without repeats |
+| `ADBLOCK_HAGEZI_CATEGORIES` | `multi-pro threat-intelligence.medium doh` | Categories taken from the hagezi feed |
+| `ADBLOCK_STEVENBLACK_CATEGORIES` | `standard` | Categories taken from the stevenblack feed |
+| `ADBLOCK_UTCAPITOLE_CATEGORIES` | ads and security | Categories taken from the utcapitole feed |
+| `ADBLOCK_REFRESH_HOUR` | `5` | Hour of the night at which adblock downloads its lists again; empty never does |
+| `ADBLOCK_REPORT_MB` | `100` | MB of DNS traffic kept in memory for adblock's DNS report, `10` to `100` in steps of 10 |
 | `ADBLOCK_MAP` | `1` | Map of blocked domains in the DNS report, which sends their addresses to ip-api.com |
 | `BANIP_FEEDS` | 5 feeds | banIP's blocklists |
 | `GUEST_SHARE` | `share` | Network name of the open SMB folder; empty switches file sharing off |
@@ -188,7 +192,7 @@ flashes carry it over.
 |---|---|---|
 | Boot | 16 MB | Boot loader and kernel |
 | Root | 2 GB | The system. Fixed size, rewritten by every flash |
-| Data | From the 4 GB mark to the end of the disk | Docker, statistics history, the shared folder. Mounted at `/mnt/data` |
+| Data | From the 4 GB mark to the end of the disk | Docker, statistics history, adblock's lists, the shared folder. Mounted at `/mnt/data` |
 
 The data partition is created on the first boot and only formatted if it does not already
 exist, so it survives reflashing. The root partition keeps its size so that an upgrade finds
@@ -212,6 +216,12 @@ the root partition grow later without moving the data.
   other router hand out this router's WAN address as DNS server. Nothing forces them to use
   it: a device that brings its own DNS, or takes the one the other router announces over
   IPv6, goes around it.
+- **Encrypted DNS**: DNS over TLS (port 853) to a service outside is cut off on the LAN and
+  the VPN, as it would go around the ad blocking. Most devices then fall back to plain DNS.
+  An Android phone with a provider's name under Private DNS does not: it reports "Private
+  DNS server cannot be accessed" and has no internet here until that setting is back on
+  Automatic. DNS over HTTPS cannot be told apart by its port; the `doh_blocklist` feed and
+  hagezi's `doh` category block the names of its providers instead.
 - **DNS root keys**: `files/etc/unbound/root.key` holds the keys unbound trusts for DNSSEC,
   taken from [IANA](https://data.iana.org/root-anchors/root-anchors.xml). The copy in
   OpenWrt's package lacks the key the root zone is signed with since 11 October 2026, and
