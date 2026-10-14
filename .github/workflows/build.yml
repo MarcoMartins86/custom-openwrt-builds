@@ -62,7 +62,7 @@ jobs:
       # The package list, to see what an update changed, and the console of the test boot
       - name: Keep the manifest and the console log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: manifest-and-console
           path: |
