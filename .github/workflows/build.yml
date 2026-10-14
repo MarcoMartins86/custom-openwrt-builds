@@ -1,19 +1,25 @@
 # Builds the image with the public settings in .env and boots it in QEMU for the smoke
 # test, on every pull request and every change to main. It uses no secrets: the image to
 # flash, with the settings in private/.env, is built on your own machine.
+#
+# Once a week it also builds main and opens an issue when the release's packages have
+# changed since the previous build there, as the router only gets them with a flash.
 name: Build and test
 
 on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: "17 5 * * 1"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# The weekly run is grouped apart, so that a merge does not cancel it
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
@@ -69,3 +75,59 @@ jobs:
             odyssey-x86j4125-imagebuilder/binaries/*.manifest
             odyssey-x86j4125-imagebuilder/test/serial.log
           if-no-files-found: ignore
+
+  # Weekly, or when started by hand: what changed in the release's packages since the
+  # last good build on main. The changes go into the open package-updates issue, or
+  # into a new one; closing it after a flash starts the next one.
+  package-changes:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-26.04
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Compare with the previous build on main
+        run: |
+          manifest() {
+            id="$(gh api "repos/$GH_REPO/actions/runs/$1/artifacts" \
+              --jq '.artifacts[] | select(.name == "manifest-and-console") | .id' | head -n 1)"
+            [ -n "$id" ] || return 1
+            gh api "repos/$GH_REPO/actions/artifacts/$id/zip" > "$2.zip"
+            unzip -p "$2.zip" 'binaries/*.manifest' > "$2"
+          }
+          previous="$(gh run list --workflow build.yml --branch main --status success --limit 10 \
+            --json databaseId --jq "[.[] | select(.databaseId != $GITHUB_RUN_ID)][0].databaseId // empty")"
+          if [ -z "$previous" ] || ! manifest "$previous" before.manifest; then
+            echo "No earlier build on main to compare with"
+            exit 0
+          fi
+          manifest "$GITHUB_RUN_ID" now.manifest
+          python3 .github/package-changes.py before.manifest now.manifest > changes.md
+          if [ ! -s changes.md ]; then
+            echo "No package changed since run $previous"
+            exit 0
+          fi
+          release="$(sed -n 's/^OPENWRT_VERSION=//p' odyssey-x86j4125-imagebuilder/.env)"
+          {
+            echo "Packages of OpenWrt $release changed between [an earlier build]($RUN_URL/$previous) and [this one]($RUN_URL/$GITHUB_RUN_ID), which passed the smoke test. A build and a flash bring them to the router."
+            echo
+            cat changes.md
+          } > body.md
+          cat body.md
+          gh label create package-updates --color 0e8a16 \
+            --description "Package updates the router gets with its next flash" --force
+          issue="$(gh issue list --label package-updates --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --body-file body.md
+          else
+            echo "Close this issue once the router has been flashed with them; later changes then open a new one." >> body.md
+            gh issue create --title "Package updates for OpenWrt $release" --label package-updates --body-file body.md
+          fi
