@@ -225,7 +225,8 @@ flashes carry it over.
 | Data | From the 4 GB mark to the end of the disk | Docker, statistics history, adblock's lists, the shared folder. Mounted at `/mnt/data` |
 
 The data partition is created on the first boot and only formatted if it does not already
-exist, so it survives reflashing. The root partition keeps its size so that an upgrade finds
+exist, so it survives reflashing. Every Sunday at 03:30 both partitions hand the SSD their
+free space (TRIM), so that it stops keeping deleted data around. The root partition keeps its size so that an upgrade finds
 the layout unchanged and leaves the rest of the disk alone. The gap up to the 4 GB mark lets
 the root partition grow later without moving the data.
 
