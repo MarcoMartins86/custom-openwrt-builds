@@ -26,7 +26,7 @@ jobs:
       run:
         working-directory: odyssey-x86j4125-imagebuilder
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Read the release
         id: release
