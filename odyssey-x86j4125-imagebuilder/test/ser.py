@@ -11,7 +11,10 @@ import socket
 import sys
 import time
 
-SOCK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "serial.sock")
+HERE = os.path.dirname(os.path.abspath(__file__))
+# Opened from its own folder: a socket path may not be longer than 107 bytes,
+# and a checkout can sit deeper than that (GitHub's runners do)
+SOCK = "serial.sock"
 ANSI = re.compile(rb"\x1b\[[0-9;?]*[A-Za-z]|\x1b[()][A-Z0-9]|\r")
 PROMPT = rb"root@[^:\n]+:[^\n]*# $"
 
@@ -38,6 +41,7 @@ def read_until(sock, regex, deadline, buf=b""):
 
 def main():
     mode, timeout, args = sys.argv[1], float(sys.argv[2]), sys.argv[3:]
+    os.chdir(HERE)
     sock = socket.socket(socket.AF_UNIX)
     sock.connect(SOCK)
     deadline = time.time() + timeout

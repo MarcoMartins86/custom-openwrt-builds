@@ -47,6 +47,7 @@ esac
 
 case "${LAN:-slirp}" in
 	slirp) LANDEV="user,id=lan,net=${LANNET}.0/24,host=${LANNET}.2,dhcpstart=${LANNET}.200,hostfwd=tcp:127.0.0.1:2222-${LANIP}:22,hostfwd=tcp:127.0.0.1:8080-${LANIP}:80" ;;
+	# full paths: QEMU leaves this folder when it goes to the background
 	dgram) LANDEV="dgram,id=lan,local.type=unix,local.path=$Q/lan.sock,remote.type=unix,remote.path=$Q/lan-peer.sock" ;;
 	*) echo "unknown LAN $LAN" >&2; exit 1 ;;
 esac

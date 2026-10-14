@@ -12,8 +12,9 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-LOCAL = os.path.join(HERE, "lan-peer.sock")
-REMOTE = os.path.join(HERE, "lan.sock")
+# Used from their own folder, as socket paths are limited to 107 bytes
+LOCAL = "lan-peer.sock"
+REMOTE = "lan.sock"
 MAC = bytes.fromhex("525400000299")
 HOSTNAME = b"testclient"
 XID = 0x0DD5EED1
@@ -97,6 +98,7 @@ def exchange(sock, pkt, want, deadline):
 
 def main():
     timeout = float(sys.argv[1]) if len(sys.argv) > 1 else 180
+    os.chdir(HERE)
     if os.path.exists(LOCAL):
         os.unlink(LOCAL)
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
