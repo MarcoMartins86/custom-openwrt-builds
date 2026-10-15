@@ -1,5 +1,19 @@
 services:
+  # OpenWrt's SDK for the same release builds the kernel modules in kmods/, which the
+  # image needs. It runs by itself before the ImageBuilder.
+  sdk:
+    image: ghcr.io/openwrt/sdk:x86-64-v${OPENWRT_VERSION}
+    network_mode: bridge
+    volumes:
+      - type: bind
+        source: .
+        target: /work
+    command: sh /work/kmods/build.sh
+
   imagebuilder:
+    depends_on:
+      sdk:
+        condition: service_completed_successfully
     # OpenWrt's own ImageBuilder container, https://github.com/openwrt/docker
     # The release is pinned in .env
     image: ghcr.io/openwrt/imagebuilder:x86-64-v${OPENWRT_VERSION}

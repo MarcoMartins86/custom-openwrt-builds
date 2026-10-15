@@ -181,6 +181,14 @@ sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "${HERE}/extra-packages.txt" | while rea
 	echo "${sum}  ${file}" | sha256sum -c -
 done
 
+# Kernel modules built for this release from kmods/, by kmods/build.sh in OpenWrt's
+# SDK (the sdk service runs it first), go the same way
+for file in "${HERE}"/kmods/out/*.apk; do
+	[ -f "${file}" ] || { echo "no kernel modules in kmods/out; build them first, see kmods/build.sh" >&2; exit 1; }
+	cp "${file}" packages/
+	echo "packages/$(basename "${file}")" >> packages/.extra
+done
+
 PACKAGES="$(sed -e 's/#.*//' "${HERE}/packages.txt" | xargs)"
 
 make image \

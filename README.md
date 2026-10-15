@@ -41,6 +41,7 @@ The inputs are all in [odyssey-x86j4125-imagebuilder](odyssey-x86j4125-imagebuil
 | `private/.env` | Your own values for those settings, and the private ones. Not in the repo |
 | `packages.txt` | Packages added to, or removed from, the profile's defaults |
 | `extra-packages.txt` | Packages from outside OpenWrt's feeds, each pinned to a download and its SHA-256 |
+| `kmods/` | Kernel modules OpenWrt does not ship, built for the release with its SDK: the board's watchdog driver |
 | `files/` | Files copied into the image, mainly the first-boot scripts |
 | `private/files/` | The same, for files that should not be public. Not in the repo |
 
@@ -52,16 +53,20 @@ mkdir -p binaries
 docker compose run --rm imagebuilder
 ```
 
+This first runs OpenWrt's SDK container for the same release, which builds the kernel
+modules in `kmods/` into `kmods/out/`, and then the ImageBuilder, which puts them into the
+image with everything else.
+
 The images land in `binaries/`, next to a `.manifest` listing every package and version that
 went in. The one to flash is `openwrt-*-ext4-combined-efi.img.gz`. It is the only kind built
 unless `IMAGE_KINDS` asks for more. The downloaded packages stay in `dl/`, so the next build
 only downloads what changed; the folder can be deleted at any time.
 
-The container runs as user 1000. If that is not you, give it the folders first with
-`mkdir -p dl && chown 1000 binaries dl`.
+The containers run as user 1000. If that is not you, give them the folders first with
+`mkdir -p dl kmods/out && chown 1000 binaries dl kmods/out`.
 
-Without Docker, extract the ImageBuilder for the release in `.env` and run
-`IB_DIR=/path/to/imagebuilder ./build.sh`.
+Without Docker, extract the SDK and the ImageBuilder for the release in `.env` and run
+`SDK_DIR=/path/to/sdk kmods/build.sh`, then `IB_DIR=/path/to/imagebuilder ./build.sh`.
 
 The images are compressed with `pigz`, on every core. Where it is missing, as in OpenWrt's
 container, `build.sh` builds it from its source once and keeps it in `dl/`.
@@ -160,6 +165,12 @@ partition.
 It needs `qemu-system-x86` and `ovmf`, and exits with 0 when every check passes. The virtual
 router emulates the real one's processor, so its first boot also prepares the processor's
 microcode and restarts once, as the router does after a flash.
+
+`test/watchdog.sh` checks the hardware watchdog in the same virtual router: procd has to be
+feeding it, and once procd lets go, the watchdog has to reset the VM by itself. It takes
+about three minutes, so the smoke test only checks the feeding. The VM gets a copy of the
+router's ACPI watchdog table, made by `test/wdat-table.py` for QEMU's emulation of the same
+chip.
 
 To look around by hand, `test/start.sh` starts the same virtual router and
 `test/ser.py sh 60 '<command>'` runs a command on its console. SSH is forwarded to port 2222
@@ -275,5 +286,12 @@ the root partition grow later without moving the data.
   and sit in the scripts of their services: without `enabled` in the unbound configuration,
   saving LuCI's page for it stops the DNS server, and without `use_ipv6` in a dynamic DNS
   service, saving its dialog removes the service's settings.
+- **Watchdog**: the board's chipset has a hardware watchdog that restarts it when the
+  system stops answering, and its firmware describes it in an ACPI WDAT table. OpenWrt's
+  kernel has no driver that reads that table, so `kmods/wdat-wdt` builds Linux's own
+  (`wdat_wdt`, copied unchanged from Linux 6.12.94) as a separate module. procd feeds the
+  watchdog every 5 s; when the system stops feeding it for 30 s, the board restarts.
+  `ubus call system watchdog` shows it as `running`.
 - **A new OpenWrt release** means changing `OPENWRT_VERSION` in `.env`, building, running
-  the smoke test and flashing.
+  the smoke test and flashing. When it moves to a new kernel series, the copy of
+  `wdat_wdt.c` in `kmods/wdat-wdt/src` may need replacing with that kernel's.

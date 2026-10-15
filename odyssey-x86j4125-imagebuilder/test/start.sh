@@ -59,6 +59,10 @@ case "${LAN:-slirp}" in
 	*) echo "unknown LAN $LAN" >&2; exit 1 ;;
 esac
 
+# The router's firmware describes its watchdog in an ACPI WDAT table; the VM gets
+# the same table for QEMU's emulation of that watchdog
+python3 "$Q/wdat-table.py" 0x660 > wdat.bin
+
 # each igb sits on its own root port, as its SR-IOV functions need a whole bus
 # first NIC = eth0 = lan (LAN_ADDRESS after first boot), second = eth1 = wan (DHCP from QEMU)
 qemu-system-x86_64 \
@@ -70,6 +74,7 @@ qemu-system-x86_64 \
 	-device pcie-root-port,id=rp1,chassis=1 -device igb,netdev=lan,bus=rp1,mac=52:54:00:00:02:01 \
 	-netdev user,id=wan \
 	-device pcie-root-port,id=rp2,chassis=2 -device igb,netdev=wan,bus=rp2,mac=52:54:00:00:02:02 \
+	-acpitable file=wdat.bin \
 	-chardev socket,id=ser0,path=serial.sock,server=on,wait=off,logfile=serial.log,logappend=on \
 	-serial chardev:ser0 \
 	-monitor unix:monitor.sock,server,nowait \

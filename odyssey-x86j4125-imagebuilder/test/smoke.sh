@@ -11,7 +11,7 @@ Q="$(cd "$(dirname "$0")" && pwd)"
 stop() {
 	python3 "$Q/ser.py" sh 30 'sync; poweroff' > /dev/null 2>&1
 	python3 "$Q/waitoff.py" 60
-	rm -f "$Q/disk.img" "$Q/vars.fd" "$Q/serial.sock" "$Q/monitor.sock" "$Q/qemu.pid"
+	rm -f "$Q/disk.img" "$Q/vars.fd" "$Q/serial.sock" "$Q/monitor.sock" "$Q/qemu.pid" "$Q/wdat.bin"
 }
 
 "$Q/start.sh" 8G sata || exit 1
@@ -37,6 +37,7 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'/etc/init.d/compose enabled || f="$f containers-not-enabled"' \
 	'grep -q "initrd /boot/intel-ucode.img" /boot/grub/grub.cfg || f="$f microcode"' \
 	'grep -q fstrim /etc/crontabs/root && fstrim / && fstrim /mnt/data || f="$f trim"' \
+	'ubus call system watchdog | grep -q "\"running\"" || f="$f watchdog"' \
 	'[ -z "'"${CONTAINER_UPDATE_DAY}"'" ] || grep -q "compose update" /etc/crontabs/root || f="$f no-container-update"' \
 	'if [ -z "$f" ]; then echo "SMOKE PASS"; else echo "SMOKE FAIL:$f"; fi')"
 echo "$OUT" | grep -E '^SMOKE (PASS|FAIL)'
