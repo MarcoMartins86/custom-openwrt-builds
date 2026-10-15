@@ -7,6 +7,7 @@ grub2 grub2-efi blockd
 intel-microcode iucode-tool            # loaded early by 99-zz_microcode
 kmod-pstore                            # keeps a crash record across restarts
 kmod-ikconfig                          # the kernel's build settings, in /proc/config.gz
+kmod-wdat-wdt                          # the board's hardware watchdog, built from kmods/wdat-wdt
 
 # --- Not on this board: drivers the x86/64 profile adds by default
 -kmod-amazon-ena -kmod-amd-xgbe -kmod-bnx2 -kmod-dwmac-intel -kmod-e1000 -kmod-e1000e

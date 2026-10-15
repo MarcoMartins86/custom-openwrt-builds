@@ -51,8 +51,8 @@ jobs:
       - name: Build
         # The ImageBuilder container runs as user 1000, the runner as someone else
         run: |
-          mkdir -p binaries dl
-          chmod -R a+rwX binaries dl
+          mkdir -p binaries dl kmods/out
+          chmod -R a+rwX binaries dl kmods/out
           docker compose run --rm imagebuilder
 
       # The test VM emulates the router's processor rather than using the runner's
