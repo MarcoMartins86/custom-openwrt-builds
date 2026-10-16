@@ -1,0 +1,13 @@
+# https://openwrt.org/docs/guide-user/base-system/log.essentials
+# The system log is kept in memory, so a restart loses it, and with it what led
+# up to the restart. On the data partition it also goes to a file, line by line
+# as it is logged. The file is renamed messages.old once it passes 1 MB, so the
+# two keep one to two weeks. log_size sets the size of the in-memory log too,
+# which LuCI shows as the system log buffer size.
+if grep -q " /mnt/data " /proc/mounts; then
+	uci -q batch << EOI
+set system.@system[0].log_file="/mnt/data/log/messages"
+set system.@system[0].log_size="1024"
+commit system
+EOI
+fi

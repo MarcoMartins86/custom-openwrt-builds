@@ -34,6 +34,8 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'[ "'"${IPV6}"'" = 1 ] || [ -z "$(ip -6 addr show dev br-lan scope global)" ] || f="$f lan-ipv6"' \
 	'i=0; while [ $i -lt 15 ] && [ "$(wg show wg0 listen-port 2>/dev/null)" != '"${VPN_PORT}"' ]; do sleep 2; i=$((i+1)); done' \
 	'[ $i -lt 15 ] || f="$f vpn-not-listening"' \
+	'i=0; while [ $i -lt 30 ] && ! grep -q "init complete" /mnt/data/log/messages; do sleep 2; i=$((i+1)); done' \
+	'[ $i -lt 30 ] || f="$f log-file"' \
 	'/etc/init.d/compose enabled || f="$f containers-not-enabled"' \
 	'grep -q "initrd /boot/intel-ucode.img" /boot/grub/grub.cfg || f="$f microcode"' \
 	'grep -q fstrim /etc/crontabs/root && fstrim / && fstrim /mnt/data || f="$f trim"' \
