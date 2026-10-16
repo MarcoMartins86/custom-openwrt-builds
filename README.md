@@ -20,7 +20,7 @@ What the router does once flashed:
 | Containers | Docker, with OpenWrt's firewall as the only firewall | `99-docker_config` |
 | Home automation | Home Assistant as a container, with a Zigbee stick | `99-homeassistant_config` |
 | File sharing | One open SMB folder, `\\odyssey\share` | `99-ksmbd_config` |
-| Monitoring | Statistics graphs with history on disk, nlbwmon, the system log kept on disk too | `99-statistics_config`, `99-nlbwmon_config`, `99-log_config` |
+| Monitoring | Statistics graphs with history on disk, nlbwmon, the system log kept on disk too, the SSD's health watched and graphed | `99-statistics_config`, `99-nlbwmon_config`, `99-log_config`, `99-smart_config` |
 | Access | LuCI over HTTPS only, SSH with keys only | `99-uci_config` |
 | VPN | WireGuard server on UDP 51820, found through a dynamic DNS name | `99-wireguard_config`, `99-ddns_config` |
 | Wi-Fi | A protected 2.4 GHz network, switched off | `99-wifi_config` |
@@ -301,6 +301,13 @@ the root partition grow later without moving the data.
   disk writes, as it is written out on its own; about 20 MB a day here.
 - **Statistics** are collected in memory and written to disk every 15 minutes, as each write
   touches every graph's file. The graphs can be that much behind.
+- **SSD health**: smartd reads the SSD's own health record (SMART) every 30 minutes. It
+  writes to the system log when a counter that points to failing flash goes up, or when the
+  temperature reaches 60 °C (critical from 70 °C). Statistics → Graphs → Disk Health shows
+  the temperature, the data written over the disk's life, how often each flash block has
+  been erased on average, which is the actual wear, and the errors, which stay at 0 on a
+  healthy disk. `smartctl -x /dev/sda` shows everything the disk reports. The SSD counts the
+  data written in GiB; the router adds about 150 MB a day.
 - **A new OpenWrt release** means changing `OPENWRT_VERSION` in `.env`, building, running
   the smoke test and flashing. When it moves to a new kernel series, the copy of
   `wdat_wdt.c` in `kmods/wdat-wdt/src` may need replacing with that kernel's.
