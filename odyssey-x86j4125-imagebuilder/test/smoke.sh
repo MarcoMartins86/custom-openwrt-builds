@@ -40,6 +40,9 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'grep -q "initrd /boot/intel-ucode.img" /boot/grub/grub.cfg || f="$f microcode"' \
 	'grep -q fstrim /etc/crontabs/root && fstrim / && fstrim /mnt/data || f="$f trim"' \
 	'ubus call system watchdog | grep -q "\"running\"" || f="$f watchdog"' \
+	'/etc/init.d/smartd running && [ -n "$(ls /tmp/smartd/*.ata.state)" ] || f="$f smartd"' \
+	'i=0; while [ $i -lt 40 ] && [ ! -f /mnt/data/rrd/'"${ROUTER_NAME}"'/diskhealth-sda/temperature.rrd ]; do sleep 2; i=$((i+1)); done' \
+	'[ $i -lt 40 ] || f="$f disk-health-graph"' \
 	'[ -z "'"${CONTAINER_UPDATE_DAY}"'" ] || grep -q "compose update" /etc/crontabs/root || f="$f no-container-update"' \
 	'if [ -z "$f" ]; then echo "SMOKE PASS"; else echo "SMOKE FAIL:$f"; fi')"
 echo "$OUT" | grep -E '^SMOKE (PASS|FAIL)'

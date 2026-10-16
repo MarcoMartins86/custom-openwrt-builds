@@ -63,6 +63,7 @@ luci-app-nlbwmon
 luci-app-statistics
 collectd-mod-conntrack collectd-mod-cpufreq collectd-mod-df collectd-mod-disk
 collectd-mod-ping collectd-mod-sensors collectd-mod-thermal collectd-mod-uptime
+collectd-mod-exec smartmontools smartd # the SSD's health in the log and a graph, see 99-smart_config
 irqbalance
 
 # --- Tools

@@ -1,0 +1,42 @@
+#!/bin/sh
+# Hands collectd the SSD's health, for the graph under Statistics → Graphs → Disk
+# Health. Reading the disk needs root, which collectd does not give the scripts
+# it runs; smartd reads it instead, and rewrites a state file in /tmp/smartd after
+# every check. Started by collectd's exec plugin, see 99-smart_config.
+#
+# usage: disk-health <disk, such as sda>
+#
+# Each value is a raw SMART attribute; smartd leaves out those that are 0.
+#   temperature    194, or 190 on disks without it, in °C (the lowest byte)
+#   count-written  241, data written over the disk's life. This SSD counts it in
+#                  GiB: writing 1.25 GiB moved it by one. Others count in 32 MiB.
+#   count-wear     167, how often each flash block has been erased, on average
+#   count-errors   5 + 176 + 178 + 199, as watched in 99-smart_config; stays 0
+ID="${COLLECTD_HOSTNAME:-$(cat /proc/sys/kernel/hostname)}/diskhealth-${1:-sda}"
+INTERVAL="${COLLECTD_INTERVAL:-30}"
+INTERVAL="${INTERVAL%.*}"
+
+while :; do
+	for state in /tmp/smartd/*.ata.state; do
+		[ -r "${state}" ] || continue
+		awk -F ' = ' -v id="${ID}" -v every="${INTERVAL}" '
+			$1 ~ /^ata-smart-attribute\.[0-9]+\.(id|raw)$/ {
+				split($1, key, ".")
+				slot[key[2]]
+				value[key[2], key[3]] = $2
+			}
+			END {
+				for (n in slot)
+					raw[value[n, "id"]] = value[n, "raw"] + 0
+				put = "PUTVAL \"" id "/%s\" interval=" every " N:%.0f\n"
+				if (194 in raw) printf put, "temperature", raw[194] % 256
+				else if (190 in raw) printf put, "temperature", raw[190] % 256
+				if (241 in raw) printf put, "count-written", raw[241]
+				if (167 in raw) printf put, "count-wear", raw[167]
+				if ((5 in raw) || (176 in raw) || (178 in raw) || (199 in raw))
+					printf put, "count-errors", raw[5] + raw[176] + raw[178] + raw[199]
+			}' "${state}"
+		break
+	done
+	sleep "${INTERVAL}"
+done

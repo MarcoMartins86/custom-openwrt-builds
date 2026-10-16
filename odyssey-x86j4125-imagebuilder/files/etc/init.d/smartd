@@ -1,0 +1,25 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2006-2011 OpenWrt.org
+#
+# The smartd package's own service, replaced to add a state file: smartd
+# rewrites it after every check with the disk's latest values, where
+# /usr/libexec/disk-health picks them up for the graph. It lives in memory, so
+# it costs the disk nothing and starts over at every boot.
+
+START=95
+
+USE_PROCD=1
+PROG=/usr/sbin/smartd
+STATE=/tmp/smartd/
+
+start_service() {
+	mkdir -p "${STATE}"
+	procd_open_instance
+	procd_set_param command "$PROG"
+	procd_append_param command -n -q never -s "${STATE}"
+	procd_close_instance
+}
+
+reload_service() {
+	procd_send_signal smartd
+}

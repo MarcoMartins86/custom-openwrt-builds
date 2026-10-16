@@ -1,0 +1,32 @@
+# https://github.com/smartmontools/smartmontools/blob/master/smartmontools/smartd.conf.5.in
+# The boot disk's own health record (SMART), which smartd reads every 30 minutes.
+# Signs of failing flash go to the system log:
+#   5 reallocated sectors, 176 erase failures and 178 reserve blocks used,
+#   logged as critical; 199 transfer errors, which usually mean the connector;
+#   a temperature from 60 °C, critical from 70 °C; and the drive's own verdict.
+# This SSD keeps its normalised values at 100 and has no error or self-test log,
+# so it is the raw counters that tell.
+BOOT="$(sed -n -e "\|\s/boot\s.*$|{s///p;q}" /etc/mtab)"
+DISK="$(lsblk -n -o PKNAME "${BOOT}")"
+case "${DISK}" in
+	sd*)
+		echo "/dev/${DISK} -H -f -t -R 5! -R 176! -R 178! -R 199 -W 0,60,70" > /etc/smartd.conf
+		# And the graph under Statistics → Graphs → Disk Health. collectd runs the
+		# script that feeds it as nobody, and smartd hands it the values.
+		uci -q batch << EOI
+set luci_statistics.collectd_exec.enable='1'
+delete luci_statistics.disk_health
+set luci_statistics.disk_health=collectd_exec_input
+set luci_statistics.disk_health.cmdline='/usr/libexec/disk-health ${DISK}'
+set luci_statistics.disk_health.cmduser='nobody'
+commit luci_statistics
+EOI
+		;;
+	nvme*)
+		echo "/dev/${DISK} -H -W 0,60,70" > /etc/smartd.conf
+		;;
+	# Memory cards and eMMC have no SMART
+	*)
+		/etc/init.d/smartd disable
+		;;
+esac
