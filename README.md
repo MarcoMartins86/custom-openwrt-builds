@@ -20,7 +20,7 @@ What the router does once flashed:
 | Containers | Docker, with OpenWrt's firewall as the only firewall | `99-docker_config` |
 | Home automation | Home Assistant as a container, with a Zigbee stick | `99-homeassistant_config` |
 | File sharing | One open SMB folder, `\\odyssey\share` | `99-ksmbd_config` |
-| Monitoring | Statistics graphs with history on disk, nlbwmon | `99-statistics_config`, `99-nlbwmon_config` |
+| Monitoring | Statistics graphs with history on disk, nlbwmon, the system log kept on disk too | `99-statistics_config`, `99-nlbwmon_config`, `99-log_config` |
 | Access | LuCI over HTTPS only, SSH with keys only | `99-uci_config` |
 | VPN | WireGuard server on UDP 51820, found through a dynamic DNS name | `99-wireguard_config`, `99-ddns_config` |
 | Wi-Fi | A protected 2.4 GHz network, switched off | `99-wifi_config` |
@@ -244,7 +244,7 @@ flashes carry it over.
 |---|---|---|
 | Boot | 16 MB | Boot loader and kernel |
 | Root | 2 GB | The system. Fixed size, rewritten by every flash |
-| Data | From the 4 GB mark to the end of the disk | Docker, statistics history, adblock's lists, the shared folder. Mounted at `/mnt/data` |
+| Data | From the 4 GB mark to the end of the disk | Docker, statistics history, the system log, adblock's lists, the shared folder. Mounted at `/mnt/data` |
 
 The data partition is created on the first boot and only formatted if it does not already
 exist, so it survives reflashing. Every Sunday at 03:30 both partitions hand the SSD their
@@ -292,6 +292,15 @@ the root partition grow later without moving the data.
   (`wdat_wdt`, copied unchanged from Linux 6.12.94) as a separate module. procd feeds the
   watchdog every 5 s; when the system stops feeding it for 30 s, the board restarts.
   `ubus call system watchdog` shows it as `running`.
+- **System log**: besides the 1 MB in memory that LuCI shows under Status → System Log,
+  every line goes to `/mnt/data/log/messages` as it is logged, and survives a restart, a
+  power cut or the watchdog. Past 1 MB the file becomes `messages.old`, so the two keep one
+  to two weeks. Only the lines from before the log service starts at boot, mostly the
+  kernel's, stay in memory alone (`dmesg`), as does all of the first boot after a flash,
+  which restarts before that point to load the microcode. Each line costs about 17 KB of
+  disk writes, as it is written out on its own; about 20 MB a day here.
+- **Statistics** are collected in memory and written to disk every 15 minutes, as each write
+  touches every graph's file. The graphs can be that much behind.
 - **A new OpenWrt release** means changing `OPENWRT_VERSION` in `.env`, building, running
   the smoke test and flashing. When it moves to a new kernel series, the copy of
   `wdat_wdt.c` in `kmods/wdat-wdt/src` may need replacing with that kernel's.

@@ -1,7 +1,10 @@
 # https://openwrt.org/docs/guide-user/perf_and_log/statistic.collectd
 . /etc/build.env
+# Every write touches each of the graphs' files, so they are collected in memory
+# and written every 15 minutes. The graphs can be that much behind, and a power
+# cut loses at most that much of them.
 uci -q batch << EOI
-set luci_statistics.collectd_rrdtool.CacheTimeout="300"
+set luci_statistics.collectd_rrdtool.CacheTimeout="900"
 set luci_statistics.collectd_rrdtool.CacheFlush="3600"
 delete luci_statistics.collectd_interface.Interfaces
 add_list luci_statistics.collectd_interface.Interfaces="br-lan"
