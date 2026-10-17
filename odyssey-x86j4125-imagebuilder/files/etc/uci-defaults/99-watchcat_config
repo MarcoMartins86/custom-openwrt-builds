@@ -1,0 +1,25 @@
+# https://openwrt.org/docs/guide-user/advanced/watchcat
+# The package's own setting restarts the router after six hours without internet.
+# Here watchcat only restarts the WAN interface, as unplugging and plugging its
+# cable would, once 1.1.1.1 and 8.8.8.8 have both stopped answering pings over
+# it for 10 minutes. It pings every 30 seconds, and restarts again every 10
+# minutes for as long as the internet stays away. Everything else on the router
+# keeps running. A fault beyond the ISP's box, which the WAN port is plugged
+# into, needs that box restarted instead.
+# The options LuCI's page shows for this mode are all written, so that saving the
+# page does not add any.
+WAN_DEVICE="$(uci -q get network.wan.device)"
+while uci -q delete watchcat.@watchcat[0]; do :; done
+uci -q batch << EOI
+set watchcat.wan=watchcat
+set watchcat.wan.mode="restart_iface"
+set watchcat.wan.interface="${WAN_DEVICE:-eth1}"
+add_list watchcat.wan.pinghosts="1.1.1.1"
+add_list watchcat.wan.pinghosts="8.8.8.8"
+set watchcat.wan.addressfamily="ipv4"
+set watchcat.wan.period="10m"
+set watchcat.wan.pingperiod="30s"
+set watchcat.wan.pingsize="standard"
+set watchcat.wan.unlockbands="0"
+commit watchcat
+EOI
