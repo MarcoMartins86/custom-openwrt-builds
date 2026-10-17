@@ -165,7 +165,11 @@ partition.
 Then it powers the VM off and checks that the data partition was unmounted cleanly. It needs
 `qemu-system-x86`, `ovmf`, `sfdisk` and `debugfs`, and exits with 0 when every check passes.
 The virtual router emulates the real one's processor, so its first boot also prepares the
-processor's microcode and restarts once, as the router does after a flash.
+processor's microcode and restarts once, as the router does after a flash. Its WAN port
+gets an address but no internet, unless `WAN=online` is set: a fresh VM would otherwise
+download every adblock list and the Home Assistant image at every boot, from the address of
+the network the machine is on. CI sets it, as those downloads come from GitHub's network
+there.
 
 `test/watchdog.sh` checks the hardware watchdog in the same virtual router: procd has to be
 feeding it, and once procd lets go, the watchdog has to reset the VM by itself. It takes

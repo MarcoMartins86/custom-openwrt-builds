@@ -63,7 +63,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils ovmf fdisk e2fsprogs
 
+      # Here the VM gets internet, from GitHub's network: it then downloads the adblock
+      # lists and the Home Assistant image as a router would, and is shut down while
+      # they are still being written
       - name: Smoke test
+        env:
+          WAN: online
         run: sh test/smoke.sh
 
       # The package list, to see what an update changed, and the console of the test boot

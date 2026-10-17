@@ -4,11 +4,15 @@
 # Serial console: serial.sock (log: serial.log), driven by ser.py.
 # SSH and LuCI's HTTP port are forwarded to 127.0.0.1:2222 and 127.0.0.1:8080.
 #
-# usage: [IMG=path] [MEM=megabytes] [KEEP=1] [LAN=slirp|dgram] start.sh [disk-size] [sata|nvme|mmc]
+# usage: [IMG=path] [MEM=megabytes] [KEEP=1] [LAN=slirp|dgram] [WAN=online] start.sh [disk-size] [sata|nvme|mmc]
 #   KEEP=1     reuse the existing disk instead of starting from a fresh copy of the image
 #   CPU=host   hand the host's processor to the VM through KVM, where there is KVM: faster,
 #              but the first boot then differs between hosts (see below)
 #   LAN=dgram  wire the lan NIC to lan.sock/lan-peer.sock for dhcp_probe.py
+#   WAN=online let the VM reach the internet through its wan port. Without it, the wan
+#              port gets its address but leads nowhere: a fresh VM would otherwise
+#              download every adblock list and the Home Assistant image, from the
+#              address of the network this machine is on, at every boot.
 set -e
 Q="$(cd "$(dirname "$0")" && pwd)"
 . "$Q/../.env"
@@ -72,7 +76,7 @@ qemu-system-x86_64 \
 	-drive file=disk.img,format=raw,if=none,id=d0,discard=unmap $DISK \
 	-netdev "$LANDEV" \
 	-device pcie-root-port,id=rp1,chassis=1 -device igb,netdev=lan,bus=rp1,mac=52:54:00:00:02:01 \
-	-netdev user,id=wan \
+	-netdev user,id=wan$([ "${WAN}" = online ] || echo ",restrict=on") \
 	-device pcie-root-port,id=rp2,chassis=2 -device igb,netdev=wan,bus=rp2,mac=52:54:00:00:02:02 \
 	-acpitable file=wdat.bin \
 	-chardev socket,id=ser0,path=serial.sock,server=on,wait=off,logfile=serial.log,logappend=on \
@@ -80,4 +84,4 @@ qemu-system-x86_64 \
 	-monitor unix:monitor.sock,server,nowait \
 	-display none -daemonize -pidfile qemu.pid
 
-echo "started pid $(cat qemu.pid), disk $SIZE on $BUS, lan ${LAN:-slirp}"
+echo "started pid $(cat qemu.pid), disk $SIZE on $BUS, lan ${LAN:-slirp}, wan ${WAN:-offline}"

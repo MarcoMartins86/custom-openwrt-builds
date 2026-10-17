@@ -70,7 +70,6 @@ set wifi_schedule.@global[0].unload_modules="0"
 add_list dockerd.globals.hosts="unix:///var/run/docker.sock"
 delete adblock.global.adb_dnsshift
 set adblock.global.adb_nicelimit="0"
-set adblock.global.adb_fetchretry="5"
 set adblock.global.adb_nftallow="0"
 set adblock.global.adb_nftblock="0"
 set adblock.global.adb_nftremote="0"
