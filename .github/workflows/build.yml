@@ -56,11 +56,12 @@ jobs:
           docker compose run --rm imagebuilder
 
       # The test VM emulates the router's processor rather than using the runner's
-      # through KVM: runners are Intel or AMD, and the first boot would differ
+      # through KVM: runners are Intel or AMD, and the first boot would differ.
+      # sfdisk and debugfs read the VM's data partition after it powers off.
       - name: Install QEMU
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils ovmf
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils ovmf fdisk e2fsprogs
 
       - name: Smoke test
         run: sh test/smoke.sh
