@@ -60,9 +60,17 @@ python3 "$Q/ser.py" sh 30 'poweroff' > /dev/null 2>&1
 python3 "$Q/waitoff.py" 120
 START="$(sfdisk -J "$Q/disk.img" | python3 -c 'import json, sys
 print(next(p["start"] for p in json.load(sys.stdin)["partitiontable"]["partitions"] if p.get("name") == "data"))')"
-FEATURES="$(debugfs -R features "$Q/disk.img?offset=$((START * 512))" 2>/dev/null)"
+DATA="$Q/disk.img?offset=$((START * 512))"
+FEATURES="$(debugfs -R features "$DATA" 2>/dev/null)"
 case "$FEATURES" in
-	*needs_recovery*) f="$f unclean-shutdown" ;;
+	*needs_recovery*)
+		f="$f unclean-shutdown"
+		# What the shutdown logged, from the VM's log file on that partition. The
+		# disk is thrown away, so its journal can be replayed first.
+		e2fsck -p "$DATA" > /dev/null 2>&1
+		echo "--- shutdown, from the VM's log:"
+		debugfs -R "cat /log/messages" "$DATA" 2>/dev/null | sed -n '/procd: - shutdown -/,$p' | cut -c1-200
+		;;
 	*has_journal*) ;;
 	*) f="$f data-partition-unreadable" ;;
 esac
