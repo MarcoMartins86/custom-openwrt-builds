@@ -3,5 +3,5 @@
 # One "<sha256>  <url>" per line.
 
 # Argon theme and its settings page, https://github.com/jerrykuku/luci-theme-argon
-fc93eaf211c34435ad44347c66f51a6158ed3f7c009b1b17943635ae15e87f69  https://github.com/jerrykuku/luci-theme-argon/releases/download/v2.4.8/luci-theme-argon-2.4.8-r2.apk
-eca59b62ed78b1aa2228d9d3e86b9a05467ba9f519d71ba2519dc626bcc54843  https://github.com/jerrykuku/luci-theme-argon/releases/download/v2.4.8/luci-app-argon-config-2.4.8-r2.apk
+fc93eaf211c34435ad44347c66f51a6158ed3f7c009b1b17943635ae15e87f69  https://github.com/jerrykuku/luci-theme-argon/releases/download/v3.0.0/luci-theme-argon-2.4.8-r2.apk
+eca59b62ed78b1aa2228d9d3e86b9a05467ba9f519d71ba2519dc626bcc54843  https://github.com/jerrykuku/luci-theme-argon/releases/download/v3.0.0/luci-app-argon-config-2.4.8-r2.apk
