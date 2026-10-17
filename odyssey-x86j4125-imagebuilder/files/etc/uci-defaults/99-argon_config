@@ -1,8 +1,0 @@
-# https://github.com/jerrykuku/luci-theme-argon
-# Keep the login page's background local. Out of the box it asks Bing for its
-# picture of the day every time the page is shown.
-# Which theme LuCI starts with is LUCI_THEME, set in 99-uci_config.
-uci -q batch << EOI
-set argon.@global[0].online_wallpaper="none"
-commit argon
-EOI

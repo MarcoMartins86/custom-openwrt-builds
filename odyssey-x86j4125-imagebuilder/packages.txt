@@ -56,7 +56,7 @@ luci-app-ksmbd
 luci luci-ssl-openssl luci-compat luci-mod-dashboard luci-lib-json libiwinfo-lua
 luci-theme-material luci-theme-openwrt luci-theme-openwrt-2020
 luci-theme-footstrap
-luci-theme-argon luci-app-argon-config   # from extra-packages.txt
+luci-theme-argon                         # from extra-packages.txt, with its settings page
 -libustream-mbedtls libustream-openssl
 
 # --- Monitoring
