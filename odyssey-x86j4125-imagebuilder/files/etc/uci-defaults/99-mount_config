@@ -17,8 +17,11 @@ broken_system_clock = true
 log_dir = /tmp
 log_filename = e2fsck-%N.log
 EOF
+# disable first: enable adds links but leaves those of an older start number
+/etc/init.d/fsck_report disable
 /etc/init.d/fsck_report enable
 
 # On reboot and poweroff, whatever still uses the data partition is ended just
 # before it is unmounted, so that it is unmounted cleanly
+/etc/init.d/release_data disable
 /etc/init.d/release_data enable

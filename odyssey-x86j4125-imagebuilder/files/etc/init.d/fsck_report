@@ -1,12 +1,14 @@
 #!/bin/sh /etc/rc.common
 # The partitions fstab mounts are checked at boot before the system log runs, so
-# e2fsck leaves its report in /tmp (see 99-mount_config). Once the log is up, this
-# hands each report to it, line by line.
+# e2fsck leaves its report in /tmp (see 99-mount_config). This hands each report
+# to the log, line by line, at the end of the boot: procd starts the log service
+# in the background, and right after it, lines sent too early were lost.
 
-START=13
+START=99
 
 boot() {
 	local report
+	ubus -t 30 wait_for log 2> /dev/null
 	for report in /tmp/e2fsck-*.log; do
 		[ -f "${report}" ] || continue
 		logger -t e2fsck < "${report}"
