@@ -266,7 +266,8 @@ the root partition grow later without moving the data.
   stopped first (`shutdown` in `/etc/init.d/compose`) and gives each container up to 20
   seconds to shut down. Just before the data partition is unmounted, `/etc/init.d/release_data`
   ends whatever still uses it, such as a container slower than that or adblock in the middle
-  of a refresh, and says so in the system log, so that the partition is unmounted cleanly.
+  of a refresh, says so in the system log, and makes the partition read-only, so that it is
+  left clean.
 - **Themes**: LuCI starts with Argon. Footstrap and the stock ones are installed next to
   it; pick another in LuCI under System → System → Language and Style. Argon's login page
   keeps a local background; its online wallpapers can be switched on under System → Argon

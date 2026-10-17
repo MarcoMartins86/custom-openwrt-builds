@@ -4,15 +4,17 @@
 # to the end, and the next boot replays its journal, as after a power cut.
 # Services without a stop step of their own, such as adblock or Docker, can do
 # that to the data partition. So whatever still uses it is ended here, just
-# before: asked first, forced a second or two later, and logged. Docker is
-# normally gone by then, see shutdown in /etc/init.d/compose.
+# before: asked first, forced a second or two later, and logged. Then the
+# partition is made read-only, so that nothing started later, such as adblock
+# saving its next list, can change it. Docker is normally gone by then, see
+# shutdown in /etc/init.d/compose.
 
 STOP=88
 MNT=/mnt/data
 
 # The processes using the data partition: a working folder or an open file on it.
 # Those in a container see it under other paths, so a container's processes all
-# count. The log writer is left for the log service, which stops right after.
+# count. The log writers are left out: the one writing to the partition goes last.
 users() {
 	{
 		cat /sys/fs/cgroup/docker/*/cgroup.procs
@@ -48,4 +50,25 @@ shutdown() {
 			i=$((i + 1))
 		done
 	done
+
+	# The log writer goes last, as the log file is on the partition too. What
+	# follows only reaches the console.
+	logger -t release_data "making ${MNT} read-only"
+	sleep 1
+	for p in $(pidof logread); do
+		ls -l "/proc/$p/fd" 2>/dev/null | grep -q " ${MNT}/" && kill -TERM "$p"
+	done
+	i=0
+	until mount -o remount,ro "${MNT}" 2>/dev/null; do
+		if [ $i -ge 5 ]; then
+			echo "<4>release_data: ${MNT} could not be made read-only" > /dev/kmsg
+			return 0
+		fi
+		for p in $(users); do
+			kill -KILL "$p" 2>/dev/null
+		done
+		sleep 1
+		i=$((i + 1))
+	done
+	echo "<5>release_data: ${MNT} is read-only" > /dev/kmsg
 }
