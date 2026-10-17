@@ -9,13 +9,21 @@ category_files() {
 		awk -F';' -v f="${feed}" -v n="${name}" '$1 == f && $2 == n { print $3 }' /etc/adblock/adblock.categories
 	done
 }
-# The download options are adblock's own for curl, with --compressed added: the
-# server of the divested feed refuses clients that do not ask for a compressed
-# transfer, and the other feeds arrive smaller with it.
+# The download options are adblock's own for curl, with two changes:
+# - --compressed: the server of the divested feed refuses clients that do not
+#   ask for a compressed transfer, and the other feeds arrive smaller with it.
+# - Two retries instead of four, and only after errors that can pass (a timeout,
+#   429 "too many requests" or a server error), waiting 10 seconds, or as long
+#   as the server asks. Adblock's own options also retry a refusal such as 403,
+#   five requests in a row, which is how servers come to block a router.
+#   adb_fetchretry only builds adblock's own options; it is set to match, for
+#   LuCI's page.
 #
 # The downloaded lists are kept on the data partition, so a boot loads them from
 # there and needs no network for it. Only a disk without them has to download at
-# boot, which is what the delay before adblock starts leaves time for.
+# boot, which is what the delay before adblock starts leaves time for. The
+# nightly refresh first asks each server for the list's ETag and downloads only
+# the lists that changed.
 #
 # The DNS report listens on every interface, so that it also shows the devices
 # on the VPN and on the WAN side. That alone would mostly catch unbound asking
@@ -29,7 +37,8 @@ category_files() {
 # outside fails to connect and cannot go around the blocking.
 uci -q batch << EOI
 set adblock.global.adb_fetchcmd="curl"
-set adblock.global.adb_fetchparm="--compressed --connect-timeout 20 --speed-time 20 --retry-delay 10 --retry 4 --retry-all-errors --fail --silent --globoff --show-error --location -o"
+set adblock.global.adb_fetchparm="--compressed --connect-timeout 20 --speed-time 20 --retry-delay 10 --retry 2 --fail --silent --globoff --show-error --location -o"
+set adblock.global.adb_fetchretry="3"
 set adblock.global.adb_triggerdelay="30"
 set adblock.global.adb_backupdir="/mnt/data/adblock/backup"
 delete adblock.global.adb_feed
