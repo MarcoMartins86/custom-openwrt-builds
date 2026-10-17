@@ -46,6 +46,7 @@ luci-proto-wireguard luci-app-ddns
 miniupnpd-nftables luci-app-upnp luci-app-bcp38 luci-app-wifischedule
 kmod-tun kmod-gre6 umdns
 ip-tiny ethtool-full curl dnslookup dnstap
+watchcat luci-app-watchcat             # restarts the WAN without internet, see 99-watchcat_config
 
 # --- Containers and file sharing
 luci-app-dockerman                     # brings dockerd, docker and docker-compose

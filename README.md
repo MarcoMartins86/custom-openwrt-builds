@@ -13,7 +13,7 @@ What the router does once flashed:
 
 | Area | Setup | Configured in |
 |---|---|---|
-| Network | LAN `192.168.2.1/24` on the first port, WAN by DHCP on the second, IPv6 off | `99-uci_config` |
+| Network | LAN `192.168.2.1/24` on the first port, WAN by DHCP on the second, IPv6 off. The WAN is restarted after 10 minutes without internet | `99-uci_config`, `99-watchcat_config` |
 | DNS and DHCP | unbound with DNSSEC, odhcpd, local names under `.lan` | `99-unbound_config` |
 | Ad blocking | adblock on unbound, lists refreshed every night, DNS forced through the router, DNS over TLS to outside cut off, DNS report for every network | `99-adblock_config` |
 | Firewall | OpenWrt's firewall plus banIP blocklists | `99-banip_config` |
@@ -313,6 +313,11 @@ the root partition grow later without moving the data.
   disk writes, as it is written out on its own; about 20 MB a day here.
 - **Statistics** are collected in memory and written to disk every 15 minutes, as each write
   touches every graph's file. The graphs can be that much behind.
+- **Internet watch**: watchcat pings 1.1.1.1 and 8.8.8.8 over the WAN port every 30 seconds.
+  When neither has answered for 10 minutes, it restarts the WAN interface, as unplugging and
+  plugging its cable would, and again every 10 minutes while the internet stays away. Nothing
+  else restarts. It cannot help when the ISP's box in front of the router has lost its own
+  connection; that box needs restarting then. During an outage it logs every failed ping.
 - **SSD health**: smartd reads the SSD's own health record (SMART) every 30 minutes. It
   writes to the system log when a counter that points to failing flash goes up, or when the
   temperature reaches 60 °C (critical from 70 °C). Statistics → Graphs → Disk Health shows

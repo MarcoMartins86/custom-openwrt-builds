@@ -44,6 +44,7 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'[ -L /etc/rc.d/K01compose ] && [ -L /etc/rc.d/K88release_data ] || f="$f shutdown-steps"' \
 	'/etc/init.d/smartd running && [ -n "$(ls /tmp/smartd/*.ata.state)" ] || f="$f smartd"' \
 	'[ "$(uci -q get fstab.@global[0].check_fs)" = 1 ] && logread | grep -q "e2fsck: data: clean" || f="$f fsck"' \
+	'/etc/init.d/watchcat running && [ "$(uci -q get watchcat.wan.mode)" = restart_iface ] || f="$f watchcat"' \
 	'i=0; while [ $i -lt 40 ] && [ ! -f /mnt/data/rrd/'"${ROUTER_NAME}"'/diskhealth-sda/temperature.rrd ]; do sleep 2; i=$((i+1)); done' \
 	'[ $i -lt 40 ] || f="$f disk-health-graph"' \
 	'[ -z "'"${CONTAINER_UPDATE_DAY}"'" ] || grep -q "compose update" /etc/crontabs/root || f="$f no-container-update"' \
