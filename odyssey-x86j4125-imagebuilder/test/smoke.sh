@@ -41,7 +41,7 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'grep -q "initrd /boot/intel-ucode.img" /boot/grub/grub.cfg || f="$f microcode"' \
 	'grep -q fstrim /etc/crontabs/root && fstrim / && fstrim /mnt/data || f="$f trim"' \
 	'ubus call system watchdog | grep -q "\"running\"" || f="$f watchdog"' \
-	'[ -L /etc/rc.d/K01compose ] || f="$f no-docker-shutdown"' \
+	'[ -L /etc/rc.d/K01compose ] && [ -L /etc/rc.d/K88release_data ] || f="$f shutdown-steps"' \
 	'/etc/init.d/smartd running && [ -n "$(ls /tmp/smartd/*.ata.state)" ] || f="$f smartd"' \
 	'[ "$(uci -q get fstab.@global[0].check_fs)" = 1 ] && logread | grep -q "e2fsck: data: clean" || f="$f fsck"' \
 	'i=0; while [ $i -lt 40 ] && [ ! -f /mnt/data/rrd/'"${ROUTER_NAME}"'/diskhealth-sda/temperature.rrd ]; do sleep 2; i=$((i+1)); done' \
@@ -63,16 +63,19 @@ print(next(p["start"] for p in json.load(sys.stdin)["partitiontable"]["partition
 DATA="$Q/disk.img?offset=$((START * 512))"
 FEATURES="$(debugfs -R features "$DATA" 2>/dev/null)"
 case "$FEATURES" in
-	*needs_recovery*)
-		f="$f unclean-shutdown"
-		# What the shutdown logged, from the VM's log file on that partition. The
-		# disk is thrown away, so its journal can be replayed first.
-		e2fsck -p "$DATA" > /dev/null 2>&1
-		echo "--- shutdown, from the VM's log:"
-		debugfs -R "cat /log/messages" "$DATA" 2>/dev/null | sed -n '/procd: - shutdown -/,$p' | cut -c1-200
-		;;
+	# The disk is thrown away, so its journal can be replayed to read the log below
+	*needs_recovery*) f="$f unclean-shutdown"; e2fsck -p "$DATA" > /dev/null 2>&1 ;;
 	*has_journal*) ;;
 	*) f="$f data-partition-unreadable" ;;
+esac
+# What the shutdown logged, from the VM's log file on that partition: how long
+# Docker took to stop, and anything that had to be ended. All of it when the
+# partition was left unclean.
+SHUTDOWN="$(debugfs -R "cat /log/messages" "$DATA" 2>/dev/null | sed -n '/procd: - shutdown -/,$p' | cut -c26-200)"
+echo "$SHUTDOWN" | grep -q "compose: Docker" || f="$f docker-not-stopped"
+case "$f" in
+	*unclean-shutdown*) echo "--- shutdown, from the VM's log:"; echo "$SHUTDOWN" ;;
+	*) echo "$SHUTDOWN" | grep -E "compose: Docker|release_data:" ;;
 esac
 
 if [ -z "$f" ]; then echo "SMOKE PASS"; else echo "SMOKE FAIL:$f"; exit 1; fi

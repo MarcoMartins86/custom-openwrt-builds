@@ -18,3 +18,7 @@ log_dir = /tmp
 log_filename = e2fsck-%N.log
 EOF
 /etc/init.d/fsck_report enable
+
+# On reboot and poweroff, whatever still uses the data partition is ended just
+# before it is unmounted, so that it is unmounted cleanly
+/etc/init.d/release_data enable

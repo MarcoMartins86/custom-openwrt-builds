@@ -263,9 +263,10 @@ the root partition grow later without moving the data.
 - **Docker** does not manage firewall rules here. Containers on Docker's default network
   reach the internet; a compose project needs `network_mode: bridge` or `host`, because the
   firewall does not know the networks compose creates. On reboot and poweroff, Docker is
-  stopped first (`shutdown` in `/etc/init.d/compose`): it gives each container its time to
-  shut down, so that the data partition can be unmounted cleanly. procd waits 15 seconds for
-  that; a container still running after that is ended with everything else.
+  stopped first (`shutdown` in `/etc/init.d/compose`) and gives each container up to 20
+  seconds to shut down. Just before the data partition is unmounted, `/etc/init.d/release_data`
+  ends whatever still uses it, such as a container slower than that or adblock in the middle
+  of a refresh, and says so in the system log, so that the partition is unmounted cleanly.
 - **Themes**: LuCI starts with Argon. Footstrap and the stock ones are installed next to
   it; pick another in LuCI under System → System → Language and Style. Argon's login page
   keeps a local background; its online wallpapers can be switched on under System → Argon

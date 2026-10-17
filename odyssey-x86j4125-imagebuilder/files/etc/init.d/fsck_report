@@ -1,6 +1,6 @@
 #!/bin/sh /etc/rc.common
 # The partitions fstab mounts are checked at boot before the system log runs, so
-# e2fsck leaves its report in /tmp (see 99-fsck_config). Once the log is up, this
+# e2fsck leaves its report in /tmp (see 99-mount_config). Once the log is up, this
 # hands each report to it, line by line.
 
 START=13

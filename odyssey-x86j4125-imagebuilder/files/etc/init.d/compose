@@ -46,17 +46,20 @@ start_service() {
 # partition, which holds Docker's files, would stay mounted to the end. Docker
 # is told to stop here instead, first of all: it gives each container its time
 # to shut down, then exits. The containers keep their restart policy, as with
-# flash.sh. procd waits up to 15 seconds for this step.
+# flash.sh. procd allows a stop step 15 seconds, then asks it to end and forces
+# it 10 seconds later; the asking is ignored, so Docker gets 20 seconds. What
+# still runs after that is ended by /etc/init.d/release_data.
 shutdown() {
 	local pid i=0
+	trap '' TERM
 	stop
 	pid="$(pidof dockerd)" || return 0
 	kill -TERM ${pid}
-	while [ $i -lt 14 ] && pidof dockerd containerd containerd-shim-runc-v2 > /dev/null; do
+	while [ $i -lt 20 ] && pidof dockerd containerd containerd-shim-runc-v2 > /dev/null; do
 		sleep 1
 		i=$((i + 1))
 	done
-	if [ $i -lt 14 ]; then
+	if [ $i -lt 20 ]; then
 		logger -t compose "Docker stopped after ${i}s"
 	else
 		logger -t compose "Docker still stopping after ${i}s"
