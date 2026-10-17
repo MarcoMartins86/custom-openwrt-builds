@@ -162,9 +162,10 @@ partition.
 ### Test
 
 `test/smoke.sh` boots the built image in QEMU and checks that the first boot did its job.
-It needs `qemu-system-x86` and `ovmf`, and exits with 0 when every check passes. The virtual
-router emulates the real one's processor, so its first boot also prepares the processor's
-microcode and restarts once, as the router does after a flash.
+Then it powers the VM off and checks that the data partition was unmounted cleanly. It needs
+`qemu-system-x86`, `ovmf`, `sfdisk` and `debugfs`, and exits with 0 when every check passes.
+The virtual router emulates the real one's processor, so its first boot also prepares the
+processor's microcode and restarts once, as the router does after a flash.
 
 `test/watchdog.sh` checks the hardware watchdog in the same virtual router: procd has to be
 feeding it, and once procd lets go, the watchdog has to reset the VM by itself. It takes
@@ -247,7 +248,9 @@ flashes carry it over.
 | Data | From the 4 GB mark to the end of the disk | Docker, statistics history, the system log, adblock's lists, the shared folder. Mounted at `/mnt/data` |
 
 The data partition is created on the first boot and only formatted if it does not already
-exist, so it survives reflashing. Every Sunday at 03:30 both partitions hand the SSD their
+exist, so it survives reflashing. Every boot checks it with e2fsck before mounting it: a
+quick look when it is clean, a full check with repairs when the kernel has found an error on
+it. The report goes to the system log under `e2fsck`. Every Sunday at 03:30 both partitions hand the SSD their
 free space (TRIM), so that it stops keeping deleted data around. The root partition keeps its size so that an upgrade finds
 the layout unchanged and leaves the rest of the disk alone. The gap up to the 4 GB mark lets
 the root partition grow later without moving the data.
@@ -259,7 +262,12 @@ the root partition grow later without moving the data.
   Its password is in LuCI and in `/etc/odyssey/wifi.key`.
 - **Docker** does not manage firewall rules here. Containers on Docker's default network
   reach the internet; a compose project needs `network_mode: bridge` or `host`, because the
-  firewall does not know the networks compose creates.
+  firewall does not know the networks compose creates. On reboot and poweroff, Docker is
+  stopped first (`shutdown` in `/etc/init.d/compose`) and gives each container up to 20
+  seconds to shut down. Just before the data partition is unmounted, `/etc/init.d/release_data`
+  ends whatever still uses it, such as a container slower than that or adblock in the middle
+  of a refresh, says so in the system log, and makes the partition read-only, so that it is
+  left clean.
 - **Themes**: LuCI starts with Argon. Footstrap and the stock ones are installed next to
   it; pick another in LuCI under System → System → Language and Style. Argon's login page
   keeps a local background; its online wallpapers can be switched on under System → Argon

@@ -1,0 +1,24 @@
+# https://openwrt.org/docs/guide-user/storage/fstab
+# Every boot runs e2fsck -p on the partitions fstab mounts, which here is the
+# data partition, before mounting them: a quick look when one is clean, a full
+# check with the safe repairs when the kernel has flagged an error on it. The
+# root partition is mounted by the kernel and gets no such check.
+uci -q batch << EOI
+set fstab.@global[0].check_fs="1"
+commit fstab
+EOI
+
+# The check runs before the system log does, so e2fsck keeps its report in /tmp
+# and /etc/init.d/fsck_report hands it to the log. broken_system_clock is
+# OpenWrt's own setting.
+cat > /etc/e2fsck.conf << EOF
+[options]
+broken_system_clock = true
+log_dir = /tmp
+log_filename = e2fsck-%N.log
+EOF
+/etc/init.d/fsck_report enable
+
+# On reboot and poweroff, whatever still uses the data partition is ended just
+# before it is unmounted, so that it is unmounted cleanly
+/etc/init.d/release_data enable

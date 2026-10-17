@@ -1,0 +1,74 @@
+#!/bin/sh /etc/rc.common
+# On reboot and poweroff, OpenWrt unmounts the disks (K90umount) before it ends
+# the processes that still run. A partition one of them still uses stays mounted
+# to the end, and the next boot replays its journal, as after a power cut.
+# Services without a stop step of their own, such as adblock or Docker, can do
+# that to the data partition. So whatever still uses it is ended here, just
+# before: asked first, forced a second or two later, and logged. Then the
+# partition is made read-only, so that nothing started later, such as adblock
+# saving its next list, can change it. Docker is normally gone by then, see
+# shutdown in /etc/init.d/compose.
+
+STOP=88
+MNT=/mnt/data
+
+# The processes using the data partition: a working folder or an open file on it.
+# Those in a container see it under other paths, so a container's processes all
+# count. The log writers are left out: the one writing to the partition goes last.
+users() {
+	{
+		cat /sys/fs/cgroup/docker/*/cgroup.procs
+		{ ls -ld /proc/[0-9]*/cwd; ls -l /proc/[0-9]*/fd; } | awk -v mnt="${MNT}" '
+			/^\/proc\/[0-9]+\/fd:$/ { split($0, part, "/"); pid = part[3]; next }
+			/ -> / {
+				p = pid
+				if (match($0, /\/proc\/[0-9]+\/cwd -> /)) {
+					p = substr($0, RSTART + 6)
+					sub(/\/.*/, "", p)
+				}
+				target = $0
+				sub(/.* -> /, "", target)
+				if (target == mnt || index(target, mnt "/") == 1)
+					print p
+			}'
+	} 2> /dev/null | sort -u | grep -v -x -e "$$" $(pidof logread | sed 's/[0-9][0-9]*/-e &/g')
+}
+
+# procd asks a stop step to end after 15 seconds; this one finishes regardless
+shutdown() {
+	local signal p name i
+	trap '' TERM
+	for signal in TERM KILL; do
+		for p in $(users); do
+			name="$(cat "/proc/$p/comm" 2>/dev/null)" || continue
+			logger -t release_data "SIG${signal} to ${name} ($p), still using ${MNT}"
+			kill -"${signal}" "$p" 2>/dev/null
+		done
+		i=0
+		while [ $i -lt 2 ] && [ -n "$(users)" ]; do
+			sleep 1
+			i=$((i + 1))
+		done
+	done
+
+	# The log writer goes last, as the log file is on the partition too. What
+	# follows only reaches the console.
+	logger -t release_data "making ${MNT} read-only"
+	sleep 1
+	for p in $(pidof logread); do
+		ls -l "/proc/$p/fd" 2>/dev/null | grep -q " ${MNT}/" && kill -TERM "$p"
+	done
+	i=0
+	until mount -o remount,ro "${MNT}" 2>/dev/null; do
+		if [ $i -ge 5 ]; then
+			echo "<4>release_data: ${MNT} could not be made read-only" > /dev/kmsg
+			return 0
+		fi
+		for p in $(users); do
+			kill -KILL "$p" 2>/dev/null
+		done
+		sleep 1
+		i=$((i + 1))
+	done
+	echo "<5>release_data: ${MNT} is read-only" > /dev/kmsg
+}

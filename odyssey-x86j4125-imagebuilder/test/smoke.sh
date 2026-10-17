@@ -1,7 +1,8 @@
 #!/bin/sh
 # Boots the built image in QEMU and checks that the first boot did its job:
 # every first-boot script ran, the data partition exists and is mounted, and the
-# router can be reached. Exit status 0 means every check passed.
+# router can be reached. Then powers it off and checks the data partition was
+# unmounted cleanly. Exit status 0 means every check passed.
 #
 # usage: [IMG=path] smoke.sh
 Q="$(cd "$(dirname "$0")" && pwd)"
@@ -40,10 +41,41 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'grep -q "initrd /boot/intel-ucode.img" /boot/grub/grub.cfg || f="$f microcode"' \
 	'grep -q fstrim /etc/crontabs/root && fstrim / && fstrim /mnt/data || f="$f trim"' \
 	'ubus call system watchdog | grep -q "\"running\"" || f="$f watchdog"' \
+	'[ -L /etc/rc.d/K01compose ] && [ -L /etc/rc.d/K88release_data ] || f="$f shutdown-steps"' \
 	'/etc/init.d/smartd running && [ -n "$(ls /tmp/smartd/*.ata.state)" ] || f="$f smartd"' \
+	'[ "$(uci -q get fstab.@global[0].check_fs)" = 1 ] && logread | grep -q "e2fsck: data: clean" || f="$f fsck"' \
 	'i=0; while [ $i -lt 40 ] && [ ! -f /mnt/data/rrd/'"${ROUTER_NAME}"'/diskhealth-sda/temperature.rrd ]; do sleep 2; i=$((i+1)); done' \
 	'[ $i -lt 40 ] || f="$f disk-health-graph"' \
 	'[ -z "'"${CONTAINER_UPDATE_DAY}"'" ] || grep -q "compose update" /etc/crontabs/root || f="$f no-container-update"' \
 	'if [ -z "$f" ]; then echo "SMOKE PASS"; else echo "SMOKE FAIL:$f"; fi')"
-echo "$OUT" | grep -E '^SMOKE (PASS|FAIL)'
-echo "$OUT" | grep -q '^SMOKE PASS$'
+case "$OUT" in
+	*"SMOKE PASS"*) f="" ;;
+	*"SMOKE FAIL:"*) f="$(echo "$OUT" | sed -n 's/^SMOKE FAIL://p')" ;;
+	*) f=" no-answer" ;;
+esac
+
+# Shutting down has to unmount the data partition, which leaves its journal with
+# nothing to recover. Docker keeps its files there and is the one to watch.
+python3 "$Q/ser.py" sh 30 'poweroff' > /dev/null 2>&1
+python3 "$Q/waitoff.py" 120
+START="$(sfdisk -J "$Q/disk.img" | python3 -c 'import json, sys
+print(next(p["start"] for p in json.load(sys.stdin)["partitiontable"]["partitions"] if p.get("name") == "data"))')"
+DATA="$Q/disk.img?offset=$((START * 512))"
+FEATURES="$(debugfs -R features "$DATA" 2>/dev/null)"
+case "$FEATURES" in
+	# The disk is thrown away, so its journal can be replayed to read the log below
+	*needs_recovery*) f="$f unclean-shutdown"; e2fsck -p "$DATA" > /dev/null 2>&1 ;;
+	*has_journal*) ;;
+	*) f="$f data-partition-unreadable" ;;
+esac
+# What the shutdown logged, from the VM's log file on that partition: how long
+# Docker took to stop, and anything that had to be ended. All of it when the
+# partition was left unclean.
+SHUTDOWN="$(debugfs -R "cat /log/messages" "$DATA" 2>/dev/null | sed -n '/procd: - shutdown -/,$p' | cut -c26-200)"
+echo "$SHUTDOWN" | grep -q "compose: Docker" || f="$f docker-not-stopped"
+case "$f" in
+	*unclean-shutdown*) echo "--- shutdown, from the VM's log:"; echo "$SHUTDOWN" ;;
+	*) echo "$SHUTDOWN" | grep -E "compose: Docker|release_data:" ;;
+esac
+
+if [ -z "$f" ]; then echo "SMOKE PASS"; else echo "SMOKE FAIL:$f"; exit 1; fi
