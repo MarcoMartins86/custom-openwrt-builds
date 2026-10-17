@@ -274,8 +274,10 @@ the root partition grow later without moving the data.
   left clean.
 - **Themes**: LuCI starts with Argon. Footstrap and the stock ones are installed next to
   it; pick another in LuCI under System → System → Language and Style. Argon's login page
-  keeps a local background; its online wallpapers can be switched on under System → Argon
-  Config.
+  keeps a local background. System → Argon Config switches on online wallpapers, picks the
+  login layout and colours, and takes an uploaded background, logo or browser icon; flashes
+  keep all of it. Argon 3 includes that page, so `luci-app-argon-config` is not installed. After
+  an update, the browser may need a forced reload (Ctrl+F5) to show its icons.
 - **Behind another router**: its devices do not pass through this one, but they can still
   use its DNS and get the ad blocking. Set `WAN_DNS_CLIENTS` to their network and make the
   other router hand out this router's WAN address as DNS server. Nothing forces them to use
