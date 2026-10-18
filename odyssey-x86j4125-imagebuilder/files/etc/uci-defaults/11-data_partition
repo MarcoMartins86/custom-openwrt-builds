@@ -49,6 +49,10 @@ set fstab.@mount[-1].uuid="${UUID}"
 set fstab.@mount[-1].enabled="1"
 commit fstab
 EOI
+# The check block runs before mounting at every later boot (see 99-mount_config),
+# which a flash would otherwise skip. Its result is in the report it leaves in
+# /tmp (see /etc/e2fsck.conf); like block, mount whatever it says.
+e2fsck -p ${PART} > /dev/null 2>&1
 mount ${PART} ${MNT} || exit 1
 
 exit 0
