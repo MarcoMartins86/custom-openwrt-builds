@@ -290,11 +290,6 @@ the root partition grow later without moving the data.
   DNS server cannot be accessed" and has no internet here until that setting is back on
   Automatic. DNS over HTTPS cannot be told apart by its port; the `doh_blocklist` feed and
   hagezi's `doh` category block the names of its providers instead.
-- **DNS root keys**: `files/etc/unbound/root.key` holds the keys unbound trusts for DNSSEC,
-  taken from [IANA](https://data.iana.org/root-anchors/root-anchors.xml). The copy in
-  OpenWrt's package lacks the key the root zone is signed with since 11 October 2026, and
-  with that copy every lookup fails as soon as the DNS server restarts. When the root key
-  changes again, add its line here.
 - **Settings LuCI adds by itself**: LuCI stores some defaults only when a page or dialog is
   saved, and they then appear as changes nobody asked for. `99-zy_luci_defaults` writes them
   beforehand, without changing how the router behaves. Two settings are more than cosmetic
