@@ -16,7 +16,7 @@ What the router does once flashed:
 | Network | LAN `192.168.2.1/24` on the first port, WAN by DHCP on the second, IPv6 off. The WAN is restarted after 10 minutes without internet | `99-uci_config`, `99-watchcat_config` |
 | DNS and DHCP | unbound with DNSSEC, odhcpd, local names under `.lan` | `99-unbound_config` |
 | Ad blocking | adblock on unbound, lists refreshed every night, DNS forced through the router, DNS over TLS to outside cut off, DNS report for every network | `99-adblock_config` |
-| Firewall | OpenWrt's firewall plus banIP blocklists | `99-banip_config` |
+| Firewall | OpenWrt's firewall plus banIP blocklists, refreshed every night | `99-banip_config` |
 | Containers | Docker, with OpenWrt's firewall as the only firewall | `99-docker_config` |
 | Home automation | Home Assistant as a container, with a Zigbee stick | `99-homeassistant_config` |
 | File sharing | One open SMB folder, `\\odyssey\share` | `99-ksmbd_config` |
@@ -102,6 +102,7 @@ fork. The build writes the settings into the image, where the first-boot scripts
 | `ADBLOCK_REPORT_MB` | `100` | MB of DNS traffic kept in memory for adblock's DNS report, `10` to `100` in steps of 10 |
 | `ADBLOCK_MAP` | `1` | Map of blocked domains in the DNS report, which sends their addresses to ip-api.com |
 | `BANIP_FEEDS` | 5 feeds | banIP's blocklists |
+| `BANIP_REFRESH_HOUR` | `4` | Hour of the night at which banIP checks its feeds for newer lists, at half past; empty never does |
 | `GUEST_SHARE` | `share` | Network name of the open SMB folder; empty switches file sharing off |
 | `HOME_ASSISTANT` | `1` | Home Assistant as a container; `0` leaves it out |
 | `ZIGBEE_DEVICE` | `/dev/ttyUSB0` | Zigbee stick handed to Home Assistant; empty for none |
@@ -249,7 +250,7 @@ flashes carry it over.
 |---|---|---|
 | Boot | 16 MB | Boot loader and kernel |
 | Root | 2 GB | The system. Fixed size, rewritten by every flash |
-| Data | From the 4 GB mark to the end of the disk | Docker, statistics history, the system log, adblock's lists, the shared folder. Mounted at `/mnt/data` |
+| Data | From the 4 GB mark to the end of the disk | Docker, statistics history, the system log, adblock's and banIP's lists, the shared folder. Mounted at `/mnt/data` |
 
 The data partition is created on the first boot and only formatted if it does not already
 exist, so it survives reflashing. Every boot checks it with e2fsck before mounting it: a

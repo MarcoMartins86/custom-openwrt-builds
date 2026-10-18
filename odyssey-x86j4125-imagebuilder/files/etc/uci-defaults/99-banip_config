@@ -1,10 +1,34 @@
-# https://github.com/openwrt/packages/blob/master/net/banip/files/README.md
+# https://github.com/openwrt/packages/blob/master/net/banip/README.md
 # The default feeds are a conservative start: three inbound attacker lists and
 # two high-confidence lists that also apply outbound.
+#
+# Downloads use adblock's options (see 99-adblock_config): compressed, and two
+# retries only after errors that can pass. ban_fetchretry only builds banIP's own
+# options; it is set to match, for LuCI's page.
+#
+# The lists are kept on the data partition, so a boot loads them from there
+# rather than downloading every feed again. Only a reload fetches newer lists: it
+# asks each server for the list's ETag first and downloads only those that
+# changed. It runs every night at half past BANIP_REFRESH_HOUR.
 . /etc/build.env
 uci -q batch << EOI
 set banip.global.ban_enabled="1"
 delete banip.global.ban_feed
 $(for feed in ${BANIP_FEEDS}; do echo "add_list banip.global.ban_feed=\"${feed}\""; done)
+set banip.global.ban_fetchcmd="curl"
+set banip.global.ban_fetchparm="--compressed --connect-timeout 20 --speed-time 20 --retry-delay 10 --retry 2 --fail --silent --globoff --show-error --location -o"
+set banip.global.ban_fetchretry="3"
 commit banip
 EOI
+if grep -q " /mnt/data " /proc/mounts; then
+	mkdir -p /mnt/data/banip/backup
+	uci -q batch << EOI
+set banip.global.ban_backupdir="/mnt/data/banip/backup"
+commit banip
+EOI
+fi
+CRON="/etc/crontabs/root"
+[ -f "${CRON}" ] && sed -i '\|/etc/init.d/banip reload|d' "${CRON}"
+if [ -n "${BANIP_REFRESH_HOUR}" ]; then
+	echo "30 ${BANIP_REFRESH_HOUR} * * * /etc/init.d/banip reload" >> "${CRON}"
+fi
