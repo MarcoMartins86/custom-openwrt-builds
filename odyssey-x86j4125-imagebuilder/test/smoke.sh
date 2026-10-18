@@ -45,6 +45,8 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'/etc/init.d/smartd running && [ -n "$(ls /tmp/smartd/*.ata.state)" ] || f="$f smartd"' \
 	'[ "$(uci -q get fstab.@global[0].check_fs)" = 1 ] && logread | grep -q "e2fsck: data: clean" || f="$f fsck"' \
 	'/etc/init.d/watchcat running && [ "$(uci -q get watchcat.wan.mode)" = restart_iface ] || f="$f watchcat"' \
+	'[ "$(uci -q get banip.global.ban_backupdir)" = /mnt/data/banip/backup ] || f="$f banip-backups"' \
+	'[ -z "'"${BANIP_REFRESH_HOUR}"'" ] || grep -q "banip reload" /etc/crontabs/root || f="$f no-banip-refresh"' \
 	'i=0; while [ $i -lt 40 ] && [ ! -f /mnt/data/rrd/'"${ROUTER_NAME}"'/diskhealth-sda/temperature.rrd ]; do sleep 2; i=$((i+1)); done' \
 	'[ $i -lt 40 ] || f="$f disk-health-graph"' \
 	'[ -z "'"${CONTAINER_UPDATE_DAY}"'" ] || grep -q "compose update" /etc/crontabs/root || f="$f no-container-update"' \
