@@ -20,7 +20,7 @@ What the router does once flashed:
 | Access | LuCI over HTTPS only, SSH with keys only; LuCI, Home Assistant and other devices' pages by name under the dynamic DNS one, with a Let's Encrypt certificate | `99-uci_config`, `99-acme_config`, `99-sites_config` |
 | VPN | WireGuard server on UDP 51820, found through a dynamic DNS name | `99-wireguard_config`, `99-ddns_config` |
 | Wi-Fi | A protected 2.4 GHz network, switched off | `99-wifi_config` |
-| CPU | Current Intel microcode, loaded by the boot loader | `99-zz_microcode` |
+| CPU | Current Intel microcode, loaded by the boot loader | `GRUB_MICROCODE`, or `99-zz_microcode` |
 
 The scripts are in [files/etc/uci-defaults](files/etc/uci-defaults).
 OpenWrt runs each of them once, on the first boot after a flash, so the image defines the
@@ -63,6 +63,35 @@ The containers run as user 1000. If that is not you, give them the folders first
 Without Docker, extract the SDK and the ImageBuilder for the release in `.env` and run
 `SDK_DIR=/path/to/sdk kmods/build.sh`, then `IB_DIR=/path/to/imagebuilder ./build.sh`.
 
+### With a self-built ImageBuilder
+
+This branch builds with an ImageBuilder from OpenWrt's source, for changes not yet in a
+release: the watchdog driver as `kmod-wdat-wdt`
+([openwrt/openwrt#25966](https://github.com/openwrt/openwrt/pull/25966)), and the boot
+loader loading the CPU microcode, set by `GRUB_MICROCODE` in `.env`. The source is
+[MarcoMartins86/openwrt](https://github.com/MarcoMartins86/openwrt), branch
+`odyssey-25.12.6`: the release in `.env` with those two changes. It is built with the
+release's own `config.buildinfo` and `feeds.buildinfo`, from
+`downloads.openwrt.org/releases/<version>/targets/x86/64/`, without the SDK
+(`CONFIG_SDK`, `CONFIG_SDK_LLVM_BPF`), the toolchain archive (`CONFIG_MAKE_TOOLCHAIN`) and
+the kernel's debug files (`CONFIG_COLLECT_KERNEL_DEBUG`), and with no BPF compiler
+(`CONFIG_BPF_TOOLCHAIN_NONE`): only `qosify`, `bridger` and `libxdp` need it, none of
+them in the image, and building LLVM runs out of memory in WSL's 7 GB. Of the feeds,
+only `dmx_usb_module` needs installing, the one kernel module from them in
+`packages.txt`.
+
+```
+make -C ~/repo/openwrt-25.12 -j12
+cd odyssey-x86j4125-imagebuilder
+./local-ib.sh ~/repo/openwrt-25.12
+IB_DIR="$(pwd)/local-ib" ./build.sh
+```
+
+`local-ib.sh` extracts the tree's ImageBuilder into `local-ib/` and copies the tree's
+kernel modules into `kmods/out/`, in place of the SDK's. That kernel is not OpenWrt's, so
+modules can only come from the tree: `apk add` on the router cannot add OpenWrt's.
+Every other package comes from the release's repositories as usual.
+
 The images are compressed with `pigz`, on every core. Where it is missing, as in OpenWrt's
 container, `build.sh` builds it from its source once and keeps it in `dl/`.
 
@@ -78,6 +107,7 @@ fork. The build writes the settings into the image, where the first-boot scripts
 | Setting | Default | What it sets |
 |---|---|---|
 | `OPENWRT_VERSION` | `25.12.6` | OpenWrt release to build |
+| `GRUB_MICROCODE` | `intel-ucode/06-7a-08` | Microcode file the boot loader hands to the kernel, with an ImageBuilder that has `CONFIG_GRUB_MICROCODE`; without one, or empty, `99-zz_microcode` sets it up on the first boot |
 | `PROFILE` | `generic` | ImageBuilder profile |
 | `ROOTFS_PARTSIZE` | `2048` | Root partition size in MB |
 | `IMAGE_KINDS` | `ext4 efi` | Images to build: file systems `ext4` and `squashfs`, boot methods `efi` and `bios`, and `targz` for the root file system as an archive. One image per file system and boot method |
@@ -212,8 +242,9 @@ partition.
 `test/smoke.sh` boots the built image in QEMU and checks that the first boot did its job.
 Then it powers the VM off and checks that the data partition was unmounted cleanly. It needs
 `qemu-system-x86`, `ovmf`, `sfdisk` and `debugfs`, and exits with 0 when every check passes.
-The virtual router emulates the real one's processor, so its first boot also prepares the
-processor's microcode and restarts once, as the router does after a flash. Its WAN port
+The virtual router emulates the real one's processor, so without `GRUB_MICROCODE` its first
+boot also prepares the processor's microcode and restarts once, as the router does after a
+flash. Its WAN port
 gets an address but no internet, unless `WAN=online` is set: a fresh VM would otherwise
 download every adblock list and the Home Assistant image at every boot, from the address of
 the network the machine is on. CI sets it, as those downloads come from GitHub's network
@@ -279,7 +310,8 @@ What a flash keeps and what it replaces:
 | Kept | Root password, SSH host keys, HTTPS certificate, the Wi-Fi password, the VPN key and its devices, everything on the data partition |
 | Replaced | The whole configuration, which the first-boot scripts write again |
 
-After the flash the router restarts once more by itself, to load the CPU microcode.
+Without `GRUB_MICROCODE`, the router restarts once more by itself after the flash, to
+load the CPU microcode.
 
 For a first install, or to recover a router that does not boot, write the image from a live
 Linux USB stick instead (`F7` at power on opens the boot menu):

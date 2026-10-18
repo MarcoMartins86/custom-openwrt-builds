@@ -18,9 +18,16 @@ stop() {
 "$Q/start.sh" 8G sata || exit 1
 trap stop EXIT
 
-# The first boot ends by restarting once, to load the processor's microcode
-python3 "$Q/ser.py" wait 300 'Linux version' 'Please press Enter to activate this console' \
-	'reboot: Restarting system' 'Linux version' 'Please press Enter to activate this console' || exit 1
+# The first boot ends by restarting once, to load the processor's microcode,
+# unless the image brings it for the boot loader already
+if [ -n "${GRUB_MICROCODE}" ]; then
+	UCODE=/boot/microcode.cpio
+	python3 "$Q/ser.py" wait 300 'Linux version' 'Please press Enter to activate this console' || exit 1
+else
+	UCODE=/boot/intel-ucode.img
+	python3 "$Q/ser.py" wait 300 'Linux version' 'Please press Enter to activate this console' \
+		'reboot: Restarting system' 'Linux version' 'Please press Enter to activate this console' || exit 1
+fi
 
 # Give the services a moment, then collect what is wrong in $f.
 # Kept as short commands: the serial console cuts lines off at about 500 characters.
@@ -38,7 +45,7 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'i=0; while [ $i -lt 30 ] && ! grep -q "init complete" /mnt/data/log/messages; do sleep 2; i=$((i+1)); done' \
 	'[ $i -lt 30 ] || f="$f log-file"' \
 	'/etc/init.d/compose enabled || f="$f containers-not-enabled"' \
-	'grep -q "initrd /boot/intel-ucode.img" /boot/grub/grub.cfg || f="$f microcode"' \
+	'[ "$(grep -c "^[[:space:]]*initrd '"${UCODE}"'$" /boot/grub/grub.cfg)" = 1 ] || f="$f microcode"' \
 	'grep -q fstrim /etc/crontabs/root && fstrim / && fstrim /mnt/data || f="$f trim"' \
 	'ubus call system watchdog | grep -q "\"running\"" || f="$f watchdog"' \
 	'[ -L /etc/rc.d/K01compose ] && [ -L /etc/rc.d/K88release_data ] || f="$f shutdown-steps"' \

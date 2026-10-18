@@ -10,7 +10,8 @@ GRUB="/boot/grub/grub.cfg"
 UCODE="/boot/intel-ucode.img"
 
 grep -q GenuineIntel /proc/cpuinfo || exit 0
-grep -q "initrd ${UCODE}" ${GRUB} && exit 0
+# Done already, here or by the image itself (GRUB_MICROCODE in .env)
+grep -q "^[[:space:]]*initrd " ${GRUB} && exit 0
 
 rm -f ${UCODE}
 iucode_tool -q -S --write-earlyfw=${UCODE} /lib/firmware/intel-ucode

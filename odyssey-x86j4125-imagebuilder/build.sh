@@ -87,6 +87,13 @@ image_kind efi GRUB_EFI_IMAGES
 image_kind bios GRUB_IMAGES
 image_kind targz TARGET_ROOTFS_TARGZ
 
+# The microcode for the boot loader, where the ImageBuilder has the option for it
+if grep -q '^CONFIG_GRUB_MICROCODE=' .config; then
+	sed -i "s|^CONFIG_GRUB_MICROCODE=.*|CONFIG_GRUB_MICROCODE=\"${GRUB_MICROCODE}\"|" .config
+elif [ -n "${GRUB_MICROCODE}" ]; then
+	echo "This ImageBuilder has no CONFIG_GRUB_MICROCODE; 99-zz_microcode loads the microcode instead"
+fi
+
 # Downloaded packages are kept in dl/ next to this script, so that the next build
 # only downloads what changed. The package index still decides which versions go
 # in, and every file is checked against it. In the container the ImageBuilder's
