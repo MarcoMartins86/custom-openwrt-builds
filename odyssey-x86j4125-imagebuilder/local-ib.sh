@@ -36,5 +36,13 @@ sed -i '\#/kmods/#d' "${IB}/repositories"
 mkdir -p "${HERE}/kmods/out"
 rm -f "${HERE}"/kmods/out/*.apk
 find "${TARGETS}" -name 'kmod-*.apk' -exec cp -t "${HERE}/kmods/out/" {} +
-echo "ImageBuilder in ${IB}, with $(ls "${HERE}"/kmods/out/*.apk | wc -l) kernel modules in kmods/out:"
+
+# Packages the tree patches on top of the release go in the ImageBuilder's own
+# folder. Their release number is above OpenWrt's, so the image takes them.
+# procd: fixes for its fork/exec signal race, https://github.com/openwrt/openwrt/issues/26003
+for name in procd procd-seccomp procd-ujail; do
+	cp "${TREE}/bin/packages/x86_64/base/${name}-"[0-9]*.apk "${IB}/packages/"
+done
+echo "ImageBuilder in ${IB}, with $(ls "${HERE}"/kmods/out/*.apk | wc -l) kernel modules in kmods/out"
+echo "and these packages from the tree: $(cd "${IB}/packages" && ls procd*.apk | xargs)"
 cat "${IB}/repositories"
