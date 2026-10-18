@@ -6,6 +6,8 @@
 #
 # usage: [IMG=path] watchdog.sh
 Q="$(cd "$(dirname "$0")" && pwd)"
+. "$Q/../.env"
+[ -f "$Q/../private/.env" ] && . "$Q/../private/.env"
 
 stop() {
 	python3 "$Q/ser.py" sh 30 'sync; poweroff' > /dev/null 2>&1
@@ -16,9 +18,14 @@ stop() {
 "$Q/start.sh" 8G sata || exit 1
 trap stop EXIT
 
-# The first boot ends by restarting once, to load the processor's microcode
-python3 "$Q/ser.py" wait 300 'Linux version' 'Please press Enter to activate this console' \
-	'reboot: Restarting system' 'Linux version' 'Please press Enter to activate this console' || exit 1
+# The first boot ends by restarting once, to load the processor's microcode,
+# unless the image brings it for the boot loader already
+if [ -n "${GRUB_MICROCODE}" ]; then
+	python3 "$Q/ser.py" wait 300 'Linux version' 'Please press Enter to activate this console' || exit 1
+else
+	python3 "$Q/ser.py" wait 300 'Linux version' 'Please press Enter to activate this console' \
+		'reboot: Restarting system' 'Linux version' 'Please press Enter to activate this console' || exit 1
+fi
 
 # Without "magicclose", procd lets go of the watchdog without stopping it
 OUT="$(python3 "$Q/ser.py" sh 60 'dmesg -n 1; sleep 5; ubus call system watchdog | grep -q "\"running\"" && echo "WATCHDOG FED"' \
