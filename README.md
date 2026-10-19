@@ -82,7 +82,7 @@ fork. The build writes the settings into the image, where the first-boot scripts
 
 | Setting | Default | What it sets |
 |---|---|---|
-| `OPENWRT_VERSION` | `25.12.5` | OpenWrt release to build |
+| `OPENWRT_VERSION` | `25.12.6` | OpenWrt release to build |
 | `PROFILE` | `generic` | ImageBuilder profile |
 | `ROOTFS_PARTSIZE` | `2048` | Root partition size in MB |
 | `IMAGE_KINDS` | `ext4 efi` | Images to build: file systems `ext4` and `squashfs`, boot methods `efi` and `bios`, and `targz` for the root file system as an archive. One image per file system and boot method |
