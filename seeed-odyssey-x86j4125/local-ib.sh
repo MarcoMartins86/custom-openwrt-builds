@@ -40,9 +40,14 @@ find "${TARGETS}" -name 'kmod-*.apk' -exec cp -t "${HERE}/kmods/out/" {} +
 # Packages the tree patches on top of the release go in the ImageBuilder's own
 # folder. Their release number is above OpenWrt's, so the image takes them.
 # procd: fixes for its fork/exec signal race, https://github.com/openwrt/openwrt/issues/26003
-for name in procd procd-seccomp procd-ujail; do
-	cp "${TREE}/bin/packages/x86_64/base/${name}-"[0-9]*.apk "${IB}/packages/"
+# fstools: the boot file system check in the log, https://github.com/openwrt/fstools/pull/23
+FROM_TREE=""
+for name in procd procd-seccomp procd-ujail block-mount blockd fstools; do
+	file="$(find "${TREE}/bin" -name "${name}-[0-9]*.apk" | head -1)"
+	[ -n "${file}" ] || { echo "no ${name} package in ${TREE}/bin; build the tree first" >&2; exit 1; }
+	cp "${file}" "${IB}/packages/"
+	FROM_TREE="${FROM_TREE} $(basename "${file}")"
 done
 echo "ImageBuilder in ${IB}, with $(ls "${HERE}"/kmods/out/*.apk | wc -l) kernel modules in kmods/out"
-echo "and these packages from the tree: $(cd "${IB}/packages" && ls procd*.apk | xargs)"
+echo "and these packages from the tree:${FROM_TREE}"
 cat "${IB}/repositories"
