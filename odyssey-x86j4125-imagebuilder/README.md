@@ -72,7 +72,9 @@ release:
 - the boot loader loading the CPU microcode, set by `GRUB_MICROCODE` in `.env`
   ([openwrt/openwrt#25997](https://github.com/openwrt/openwrt/pull/25997));
 - procd's fixes for a service stopped right after it starts, which it otherwise
-  force-kills 5 s later ([openwrt/openwrt#26003](https://github.com/openwrt/openwrt/issues/26003)).
+  force-kills 5 s later ([openwrt/openwrt#26003](https://github.com/openwrt/openwrt/issues/26003));
+- the data partition's check at boot in the log, from `block` itself
+  ([openwrt/fstools#23](https://github.com/openwrt/fstools/pull/23)).
 
 The source is [MarcoMartins86/openwrt](https://github.com/MarcoMartins86/openwrt), branch
 `odyssey-25.12.6`: the release in `.env` with those changes. It is built with the
@@ -95,8 +97,8 @@ IB_DIR="$(pwd)/local-ib" ./build.sh
 `local-ib.sh` extracts the tree's ImageBuilder into `local-ib/` and copies the tree's
 kernel modules into `kmods/out/`, in place of the SDK's. That kernel is not OpenWrt's, so
 modules can only come from the tree: `apk add` on the router cannot add OpenWrt's. It also
-puts the tree's procd packages into the ImageBuilder, whose release number is above
-OpenWrt's. Every other package comes from the release's repositories as usual.
+puts the tree's procd and fstools packages into the ImageBuilder, whose release number is
+above OpenWrt's. Every other package comes from the release's repositories as usual.
 
 The images are compressed with `pigz`, on every core. Where it is missing, as in OpenWrt's
 container, `build.sh` builds it from its source once and keeps it in `dl/`.
