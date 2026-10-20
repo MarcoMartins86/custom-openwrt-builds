@@ -42,17 +42,21 @@ while uci -q get fstab.@mount[$i] > /dev/null; do
 		i=$((i+1))
 	fi
 done
+# https://openwrt.org/docs/guide-user/storage/fstab
+# block mounts the partition from fstab, here and at every later boot, and with
+# check_fs runs e2fsck -p on it first: a quick look when it is clean, a full
+# check with the safe repairs when the kernel has flagged an error on it. block
+# logs what the check finds. The root partition is mounted by the kernel and
+# gets no such check.
 uci -q batch << EOI
 add fstab mount
 set fstab.@mount[-1].target="${MNT}"
 set fstab.@mount[-1].uuid="${UUID}"
 set fstab.@mount[-1].enabled="1"
+set fstab.@global[0].check_fs="1"
 commit fstab
 EOI
-# The check block runs before mounting at every later boot (see 99-mount_config),
-# which a flash would otherwise skip. Its result is in the report it leaves in
-# /tmp (see /etc/e2fsck.conf); like block, mount whatever it says.
-e2fsck -p ${PART} > /dev/null 2>&1
-mount ${PART} ${MNT} || exit 1
+block mount
+grep -q " ${MNT} " /proc/mounts || exit 1
 
 exit 0
