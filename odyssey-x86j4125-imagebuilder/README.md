@@ -342,7 +342,7 @@ flashes carry it over.
 The data partition is created on the first boot and only formatted if it does not already
 exist, so it survives reflashing. Every boot checks it with e2fsck before mounting it, the
 first one after a flash included: a quick look when it is clean, a full check with repairs when the kernel has found an error on
-it. The report goes to the system log under `e2fsck`. Every Sunday at 03:30 both partitions hand the SSD their
+it. `block` logs what the check finds, as `block: e2fsck: …`. Every Sunday at 03:30 both partitions hand the SSD their
 free space (TRIM), so that it stops keeping deleted data around. The root partition keeps its size so that an upgrade finds
 the layout unchanged and leaves the rest of the disk alone. The gap up to the 4 GB mark lets
 the root partition grow later without moving the data.

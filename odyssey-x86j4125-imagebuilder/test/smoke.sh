@@ -50,7 +50,7 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'ubus call system watchdog | grep -q "\"running\"" || f="$f watchdog"' \
 	'[ -L /etc/rc.d/K01compose ] && [ -L /etc/rc.d/K88release_data ] || f="$f shutdown-steps"' \
 	'/etc/init.d/smartd running && [ -n "$(ls /tmp/smartd/*.ata.state)" ] || f="$f smartd"' \
-	'[ "$(uci -q get fstab.@global[0].check_fs)" = 1 ] && logread | grep -q "e2fsck: data: clean" || f="$f fsck"' \
+	'[ "$(uci -q get fstab.@global[0].check_fs)" = 1 ] && logread | grep -q "block: e2fsck: data: clean" || f="$f fsck"' \
 	'/etc/init.d/watchcat running && [ "$(uci -q get watchcat.wan.mode)" = restart_iface ] || f="$f watchcat"' \
 	'[ "$(uci -q get banip.global.ban_backupdir)" = /mnt/data/banip/backup ] || f="$f banip-backups"' \
 	'[ -z "'"${BANIP_REFRESH_HOUR}"'" ] || grep -q "banip reload" /etc/crontabs/root || f="$f no-banip-refresh"' \
