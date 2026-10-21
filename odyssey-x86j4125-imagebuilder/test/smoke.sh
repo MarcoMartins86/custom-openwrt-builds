@@ -48,7 +48,8 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'[ "$(grep -c "^[[:space:]]*initrd '"${UCODE}"'$" /boot/grub/grub.cfg)" = 1 ] || f="$f microcode"' \
 	'grep -q fstrim /etc/crontabs/root && fstrim / && fstrim /mnt/data || f="$f trim"' \
 	'ubus call system watchdog | grep -q "\"running\"" || f="$f watchdog"' \
-	'[ -L /etc/rc.d/K01compose ] && [ -L /etc/rc.d/K88release_data ] || f="$f shutdown-steps"' \
+	'/etc/init.d/dockerd running || f="$f docker-not-running"' \
+	'[ -L /etc/rc.d/K10dockerd ] && [ -L /etc/rc.d/K88release_data ] || f="$f shutdown-steps"' \
 	'/etc/init.d/smartd running && [ -n "$(ls /tmp/smartd/*.ata.state)" ] || f="$f smartd"' \
 	'[ "$(uci -q get fstab.@global[0].check_fs)" = 1 ] && logread | grep -q "block: e2fsck: data: clean" || f="$f fsck"' \
 	'/etc/init.d/watchcat running && [ "$(uci -q get watchcat.wan.mode)" = restart_iface ] || f="$f watchcat"' \
@@ -84,14 +85,14 @@ case "$FEATURES" in
 	*has_journal*) ;;
 	*) f="$f data-partition-unreadable" ;;
 esac
-# What the shutdown logged, from the VM's log file on that partition: how long
-# Docker took to stop, and anything that had to be ended. All of it when the
-# partition was left unclean.
+# What the shutdown logged, from the VM's log file on that partition: anything
+# that had to be ended, which must not be Docker, stopped before by its own
+# script. All of it when the partition was left unclean.
 SHUTDOWN="$(debugfs -R "cat /log/messages" "$DATA" 2>/dev/null | sed -n '/procd: - shutdown -/,$p' | cut -c26-200)"
-echo "$SHUTDOWN" | grep -q "compose: Docker" || f="$f docker-not-stopped"
+echo "$SHUTDOWN" | grep -q -E "release_data: SIG[A-Z]+ to (dockerd|containerd)" && f="$f docker-not-stopped"
 case "$f" in
 	*unclean-shutdown*) echo "--- shutdown, from the VM's log:"; echo "$SHUTDOWN" ;;
-	*) echo "$SHUTDOWN" | grep -E "compose: Docker|release_data:" ;;
+	*) echo "$SHUTDOWN" | grep "release_data:" ;;
 esac
 
 if [ -z "$f" ]; then echo "SMOKE PASS"; else echo "SMOKE FAIL:$f"; exit 1; fi
