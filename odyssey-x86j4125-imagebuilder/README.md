@@ -101,6 +101,12 @@ modules can only come from the tree: `apk add` on the router cannot add OpenWrt'
 puts the tree's procd and fstools packages into the ImageBuilder, whose release number is
 above OpenWrt's. Every other package comes from the release's repositories as usual.
 
+One more change does not come from the tree: `files/etc/init.d/dockerd` replaces the init
+script of the release's `dockerd` package with one that stops Docker on reboot and poweroff
+([openwrt/packages#30840](https://github.com/openwrt/packages/pull/30840)). It goes once
+the package has that change; until then, compare it with the package's script whenever the
+release changes.
+
 The images are compressed with `pigz`, on every core. Where it is missing, as in OpenWrt's
 container, `build.sh` builds it from its source once and keeps it in `dl/`.
 
@@ -396,8 +402,8 @@ the root partition grow later without moving the data.
 - **Docker** does not manage firewall rules here. Containers on Docker's default network
   reach the internet; a compose project needs `network_mode: bridge` or `host`, because the
   firewall does not know the networks compose creates. On reboot and poweroff, Docker is
-  stopped first (`shutdown` in `/etc/init.d/compose`) and gives each container up to 20
-  seconds to shut down. Just before the data partition is unmounted, `/etc/init.d/release_data`
+  stopped early (`/etc/init.d/dockerd`, see above) and gives each container its stop timeout
+  to shut down, 10 seconds by default, within the 25 seconds procd allows. Just before the data partition is unmounted, `/etc/init.d/release_data`
   ends whatever still uses it, such as a container slower than that or adblock in the middle
   of a refresh, says so in the system log, and makes the partition read-only, so that it is
   left clean.
