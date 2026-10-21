@@ -6,7 +6,6 @@
 # https://docs.docker.com/compose/
 
 START=99
-STOP=01
 USE_PROCD=1
 
 extra_command "update" "Download newer images and recreate the containers that use them"
@@ -39,29 +38,4 @@ start_service() {
 	procd_set_param stdout 1
 	procd_set_param stderr 1
 	procd_close_instance
-}
-
-# On reboot and poweroff. The Docker service has no stop step of its own, so
-# OpenWrt would only end it after trying to unmount the disks, and the data
-# partition, which holds Docker's files, would stay mounted to the end. Docker
-# is told to stop here instead, first of all: it gives each container its time
-# to shut down, then exits. The containers keep their restart policy, as with
-# flash.sh. procd allows a stop step 15 seconds, then asks it to end and forces
-# it 10 seconds later; the asking is ignored, so Docker gets 20 seconds. What
-# still runs after that is ended by /etc/init.d/release_data.
-shutdown() {
-	local pid i=0
-	trap '' TERM
-	stop
-	pid="$(pidof dockerd)" || return 0
-	kill -TERM ${pid}
-	while [ $i -lt 20 ] && pidof dockerd containerd containerd-shim-runc-v2 > /dev/null; do
-		sleep 1
-		i=$((i + 1))
-	done
-	if [ $i -lt 20 ]; then
-		logger -t compose "Docker stopped after ${i}s"
-	else
-		logger -t compose "Docker still stopping after ${i}s"
-	fi
 }

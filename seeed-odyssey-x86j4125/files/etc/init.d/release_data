@@ -2,12 +2,13 @@
 # On reboot and poweroff, OpenWrt unmounts the disks (K90umount) before it ends
 # the processes that still run. A partition one of them still uses stays mounted
 # to the end, and the next boot replays its journal, as after a power cut.
-# Services without a stop step of their own, such as adblock or Docker, can do
-# that to the data partition. So whatever still uses it is ended here, just
-# before: asked first, forced a second or two later, and logged. Then the
-# partition is made read-only, so that nothing started later, such as adblock
-# saving its next list, can change it. Docker is normally gone by then, see
-# shutdown in /etc/init.d/compose.
+# Services without a stop step of their own, such as adblock, can do that to the
+# data partition. So whatever still uses it is ended here, just before: asked
+# first, forced a second or two later, and logged. Then the partition is made
+# read-only, so that nothing started later, such as adblock saving its next
+# list, can change it. Docker is normally gone by then, as /etc/init.d/dockerd
+# stops it early on; only a container that needs longer than the 25 seconds
+# procd allows that stop is still running here.
 
 STOP=88
 MNT=/mnt/data
