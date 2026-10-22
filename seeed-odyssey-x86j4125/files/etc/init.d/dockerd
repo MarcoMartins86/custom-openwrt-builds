@@ -301,8 +301,8 @@ service_stopped() {
 
 	# On shutdown procd sends SIGTERM after 15s and SIGKILL after 25s, use all of it
 	trap '' TERM
-	# Wait for the containers to exit, so that a shutdown unmounts the data root after them
-	while [ "${i}" -lt 300 ] && pidof /usr/bin/dockerd /usr/bin/containerd /usr/bin/containerd-shim-runc-v2 > /dev/null; do
+	# Wait for dockerd, which exits after stopping the containers, so that a shutdown unmounts the data root after them
+	while [ "${i}" -lt 300 ] && pidof /usr/bin/dockerd > /dev/null; do
 		sleep 1
 		i=$((i + 1))
 	done
