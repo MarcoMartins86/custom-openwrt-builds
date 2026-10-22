@@ -52,7 +52,7 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'/etc/init.d/dockerd running || f="$f docker-not-running"' \
 	'[ -L /etc/rc.d/K10dockerd ] && [ -L /etc/rc.d/K88release_data ] || f="$f shutdown-steps"' \
 	'/etc/init.d/smartd running && [ -n "$(ls /tmp/smartd/*.ata.state)" ] || f="$f smartd"' \
-	'[ "$(uci -q get fstab.@global[0].check_fs)" = 1 ] && logread | grep -q "block: e2fsck: data: clean" || f="$f fsck"' \
+	'[ "$(uci -q get fstab.@global[0].check_fs)" = 1 ] && grep -q "block: e2fsck: data: clean" /mnt/data/log/messages || f="$f fsck"' \
 	'/etc/init.d/watchcat running && [ "$(uci -q get watchcat.wan.mode)" = restart_iface ] || f="$f watchcat"' \
 	'[ "'"${BACKUP_WAN}"'" != 1 ] || { /etc/init.d/mwan3 enabled && [ "$(uci -q get mwan3.wan.initial_state)" = offline ]; } || f="$f backup-wan"' \
 	'[ "$(uci -q get unbound.@unbound[0].iface_trig)" = lan ] && [ -f /etc/hotplug.d/iface/96-unbound ] || f="$f unbound-triggers"' \
