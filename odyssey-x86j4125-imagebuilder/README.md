@@ -74,7 +74,9 @@ release:
 - procd's fixes for a service stopped right after it starts, which it otherwise
   force-kills 5 s later ([openwrt/openwrt#26003](https://github.com/openwrt/openwrt/issues/26003));
 - the data partition's check at boot in the log, from `block` itself
-  ([openwrt/fstools#23](https://github.com/openwrt/fstools/pull/23)).
+  ([openwrt/fstools#23](https://github.com/openwrt/fstools/pull/23));
+- the log file on the data partition starting each boot with what was logged before it
+  could be opened, such as the kernel's messages and that check.
 
 The source is [MarcoMartins86/openwrt](https://github.com/MarcoMartins86/openwrt), branch
 `odyssey-25.12.6`: the release in `.env` with those changes. It is built with the
@@ -97,8 +99,9 @@ IB_DIR="$(pwd)/local-ib" ./build.sh
 `local-ib.sh` extracts the tree's ImageBuilder into `local-ib/` and copies the tree's
 kernel modules into `kmods/out/`, in place of the SDK's. That kernel is not OpenWrt's, so
 modules can only come from the tree: `apk add` on the router cannot add OpenWrt's. It also
-puts the tree's procd and fstools packages into the ImageBuilder, whose release number is
-above OpenWrt's. Every other package comes from the release's repositories as usual.
+puts the tree's procd, fstools and ubox packages into the ImageBuilder, whose release
+number is above OpenWrt's. Every other package comes from the release's repositories as
+usual.
 
 One more change does not come from the tree: `files/etc/init.d/dockerd` replaces the init
 script of the release's `dockerd` package with one that stops Docker on reboot and poweroff
