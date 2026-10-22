@@ -41,8 +41,9 @@ find "${TARGETS}" -name 'kmod-*.apk' -exec cp -t "${HERE}/kmods/out/" {} +
 # folder. Their release number is above OpenWrt's, so the image takes them.
 # procd: fixes for its fork/exec signal race, https://github.com/openwrt/openwrt/issues/26003
 # fstools: the boot file system check in the log, https://github.com/openwrt/fstools/pull/23
+# ubox: logd's log file gets what was logged at boot before it could be opened
 FROM_TREE=""
-for name in procd procd-seccomp procd-ujail block-mount blockd fstools; do
+for name in procd procd-seccomp procd-ujail block-mount blockd fstools ubox logd getrandom; do
 	file="$(find "${TREE}/bin" -name "${name}-[0-9]*.apk" | head -1)"
 	[ -n "${file}" ] || { echo "no ${name} package in ${TREE}/bin; build the tree first" >&2; exit 1; }
 	cp "${file}" "${IB}/packages/"
