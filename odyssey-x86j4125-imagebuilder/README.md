@@ -76,7 +76,8 @@ release:
 - the data partition's check at boot in the log, from `block` itself
   ([openwrt/fstools#23](https://github.com/openwrt/fstools/pull/23));
 - the log file on the data partition starting each boot with what was logged before it
-  could be opened, such as the kernel's messages and that check.
+  could be opened, such as the kernel's messages and that check
+  ([openwrt/openwrt#26126](https://github.com/openwrt/openwrt/pull/26126)).
 
 The source is [MarcoMartins86/openwrt](https://github.com/MarcoMartins86/openwrt), branch
 `odyssey-25.12.6`: the release in `.env` with those changes. It is built with the
