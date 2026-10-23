@@ -43,6 +43,7 @@ luci-app-adblock tcpdump               # adblock's DNS report captures with tcpd
 luci-app-banip
 iptables-nft ip6tables-nft iptables-mod-ipopt ipset
 luci-proto-wireguard luci-app-ddns
+acme-acmesh acme-acmesh-dnsapi luci-app-acme  # Let's Encrypt for that name, see 99-acme_config
 miniupnpd-nftables luci-app-upnp luci-app-bcp38 luci-app-wifischedule
 kmod-tun kmod-gre6 umdns
 ip-tiny ethtool-full curl dnslookup dnstap

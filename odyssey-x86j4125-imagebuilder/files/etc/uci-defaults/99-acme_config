@@ -1,0 +1,55 @@
+# https://openwrt.org/docs/guide-user/services/tls/acmesh
+# A Let's Encrypt certificate for the dynamic DNS name, so that LuCI and Home
+# Assistant open by that name without a browser warning. acme.sh proves the name
+# to Let's Encrypt through a DNS record it sets at DuckDNS, so nothing is opened
+# to the outside. The account and the certificate live on the data partition: a
+# reflash keeps them, where asking for a new certificate each time would soon
+# run into Let's Encrypt's limit of 5 identical ones a week.
+# /usr/libexec/acme-install hands the certificate to LuCI and Home Assistant.
+. /etc/build.env
+[ -s /etc/ddns.env ] && . /etc/ddns.env
+if [ -n "${LETSENCRYPT}" ] && [ "${DDNS_PROVIDER}" = duckdns.org ] && [ -n "${DDNS_TOKEN}" ] \
+	&& grep -q " /mnt/data " /proc/mounts; then
+	# The acme packages create both folders, empty
+	for dir in /etc/acme:state /etc/ssl/acme:certs; do
+		link="${dir%:*}"
+		target="/mnt/data/acme/${dir#*:}"
+		mkdir -p "${target}"
+		[ -L "${link}" ] || { rm -rf "${link}"; ln -s "${target}" "${link}"; }
+	done
+	[ "${LETSENCRYPT}" = staging ] && STAGING=1 || STAGING=0
+	# acme insists on a contact address. Let's Encrypt has stopped sending expiry
+	# notices, so one on the router's own name is enough and keeps a personal
+	# address out of it. acme.sh would check the DNS record through public DNS
+	# over HTTPS, which adblock blocks; it waits a fixed 2 minutes instead.
+	uci -q batch << EOI
+delete acme.example_wildcard
+delete acme.example_subdomain
+set acme.@acme[0].account_email="acme@${DDNS_HOST}"
+set acme.router=cert
+set acme.router.enabled="1"
+set acme.router.staging="${STAGING}"
+add_list acme.router.domains="${DDNS_HOST}"
+set acme.router.validation_method="dns"
+set acme.router.dns="dns_duckdns"
+add_list acme.router.credentials='DuckDNS_Token="${DDNS_TOKEN}"'
+set acme.router.dns_wait="120"
+set acme.router.key_type="ec256"
+commit acme
+EOI
+	# In the LAN the name leads to the router itself: outside it points at the
+	# modem, which would not pass the connection on. Only LAN devices get that
+	# answer. VPN devices ask the router too, and reach the VPN by the same name,
+	# which an inside address would break. "view-first" leaves every other name,
+	# adblock's included, to the usual rules.
+	eval "$(ipcalc.sh "${LAN_ADDRESS}")"
+	echo "access-control-view: ${NETWORK}/${PREFIX} lan" >> /etc/unbound/unbound_srv.conf
+	cat >> /etc/unbound/unbound_ext.conf << EOI
+view:
+	name: "lan"
+	view-first: yes
+	local-data: "${DDNS_HOST}. A ${LAN_ADDRESS%/*}"
+EOI
+	# A certificate kept from before a reflash goes straight back into use
+	/usr/libexec/acme-install
+fi
