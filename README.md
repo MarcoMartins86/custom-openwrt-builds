@@ -140,7 +140,9 @@ the internet. They use the router's DNS, so ad blocking applies to them as well.
 - **Adding a device**: in LuCI under Network → Interfaces → wg0 → Edit → Peers, choose
   Add peer, then Generate new key pair, and give it the next free address under Allowed IPs
   (`10.8.0.2/32`, `10.8.0.3/32`, ...). Generate configuration… then shows a QR code for the
-  WireGuard app. As DNS server for the device use `10.8.0.1`.
+  WireGuard app. As DNS server for the device use `10.8.0.1`, and as endpoint a name under
+  the dynamic DNS one, such as `vpn.name.duckdns.org`: with the
+  [HTTPS certificate](#https-certificate), the name itself leads VPN devices to the router.
 
 ### HTTPS certificate
 
@@ -153,8 +155,10 @@ out.
   nothing is opened to the outside. It asks for the certificate when the WAN first comes up,
   and renews it when due, after 60 of its 90 days, checking every night and whenever the WAN
   comes up.
-- **The name in the LAN** leads to the router itself. VPN devices and everyone else get the
-  home's public address, as the VPN is found by the same name.
+- **The name in the LAN and the VPN** leads to the router itself; everyone else gets the
+  home's public address. VPN devices therefore connect to the VPN by a name under it, such as
+  `vpn.name.duckdns.org`: DuckDNS answers it with the same address, and the router leaves it
+  alone, so a device asking through the tunnel cannot lose its way back.
 - **Flashing** keeps the account and the certificate, which live on the data partition, so
   a flash does not ask Let's Encrypt for a new one.
 - **`odyssey.lan` and the address** keep working, with a browser warning, as the certificate
