@@ -6,10 +6,10 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "The OpenWrt release in .env and in the README. It names the ImageBuilder container, so a release only counts once its container is published.",
+      "description": "The OpenWrt release in the build's .env and README. It names the ImageBuilder container, so a release only counts once its container is published.",
       "managerFilePatterns": [
         "/^odyssey-x86j4125-imagebuilder/\\.env$/",
-        "/^README\\.md$/"
+        "/^odyssey-x86j4125-imagebuilder/README\\.md$/"
       ],
       "matchStrings": [
         "OPENWRT_VERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)",
