@@ -21,7 +21,7 @@ What the router does once flashed:
 | Home automation | Home Assistant as a container, with a Zigbee stick | `99-homeassistant_config` |
 | File sharing | One open SMB folder, `\\odyssey\share` | `99-ksmbd_config` |
 | Monitoring | Statistics graphs with history on disk, nlbwmon, the system log kept on disk too, the SSD's health watched and graphed | `99-statistics_config`, `99-nlbwmon_config`, `99-log_config`, `99-smart_config` |
-| Access | LuCI over HTTPS only, with a Let's Encrypt certificate for the dynamic DNS name, SSH with keys only | `99-uci_config`, `99-acme_config` |
+| Access | LuCI over HTTPS only, SSH with keys only; LuCI, Home Assistant and other devices' pages by name under the dynamic DNS one, with a Let's Encrypt certificate | `99-uci_config`, `99-acme_config`, `99-sites_config` |
 | VPN | WireGuard server on UDP 51820, found through a dynamic DNS name | `99-wireguard_config`, `99-ddns_config` |
 | Wi-Fi | A protected 2.4 GHz network, switched off | `99-wifi_config` |
 | CPU | Current Intel microcode, loaded by the boot loader | `99-zz_microcode` |
@@ -104,8 +104,10 @@ fork. The build writes the settings into the image, where the first-boot scripts
 | `BANIP_FEEDS` | 5 feeds | banIP's blocklists |
 | `BANIP_REFRESH_HOUR` | `4` | Hour of the night at which banIP checks its feeds for newer lists, at half past; empty never does |
 | `GUEST_SHARE` | `share` | Network name of the open SMB folder; empty switches file sharing off |
-| `LETSENCRYPT` | `1` | A [Let's Encrypt certificate](#https-certificate) for `DDNS_HOST`, on DuckDNS; empty for none, `staging` for Let's Encrypt's test service |
+| `LETSENCRYPT` | `1` | A Let's Encrypt certificate for the names under `DDNS_HOST`, on DuckDNS, and the [sites by name](#sites-by-name); empty for none, `staging` for Let's Encrypt's test service |
+| `SITES` | (empty) | More [sites by name](#sites-by-name): `name=address` pairs, separated by spaces |
 | `HOME_ASSISTANT` | `1` | Home Assistant as a container; `0` leaves it out |
+| `HOME_ASSISTANT_NAME` | `ha` | Its name under `DDNS_HOST`, with the certificate |
 | `ZIGBEE_DEVICE` | `/dev/ttyUSB0` | Zigbee stick handed to Home Assistant; empty for none |
 | `CONTAINER_UPDATE_DAY` | `15` | Day of the month on which the containers get their newest images; empty for never |
 | `LUCI_THEME` | `argon` | Theme LuCI starts with |
@@ -140,37 +142,52 @@ the internet. They use the router's DNS, so ad blocking applies to them as well.
 - **Adding a device**: in LuCI under Network → Interfaces → wg0 → Edit → Peers, choose
   Add peer, then Generate new key pair, and give it the next free address under Allowed IPs
   (`10.8.0.2/32`, `10.8.0.3/32`, ...). Generate configuration… then shows a QR code for the
-  WireGuard app. As DNS server for the device use `10.8.0.1`, and as endpoint a name under
-  the dynamic DNS one, such as `vpn.name.duckdns.org`: with the
-  [HTTPS certificate](#https-certificate), the name itself leads VPN devices to the router.
+  WireGuard app. As DNS server for the device use `10.8.0.1`, and as endpoint the dynamic DNS
+  name, or a name under it that is not one of the [sites](#sites-by-name), such as
+  `vpn.name.duckdns.org`.
 
-### HTTPS certificate
+### Sites by name
 
 With dynamic DNS on DuckDNS, the router gets a [Let's Encrypt](https://letsencrypt.org)
-certificate for its name, so LuCI opens at `https://name.duckdns.org` and Home Assistant at
-`https://name.duckdns.org:8123`, without a browser warning. `LETSENCRYPT=` (empty) leaves it
-out.
+certificate for every name under its DuckDNS one, and serves its sites by those names,
+without a browser warning, from the LAN and the VPN:
+
+| Name | Site |
+|---|---|
+| `odyssey.name.duckdns.org` | LuCI; the name is `ROUTER_NAME` |
+| `ha.name.duckdns.org` | Home Assistant; the name is `HOME_ASSISTANT_NAME` |
+| Each one in `SITES` | Another device's web page, such as `xeroca=https://192.168.2.50` for a printer |
+
+`LETSENCRYPT=` (empty) leaves all of it out, and LuCI keeps port 443 to itself.
 
 - **How**: acme.sh proves the name to Let's Encrypt with a DNS record it sets at DuckDNS, so
   nothing is opened to the outside. It asks for the certificate when the WAN first comes up,
   and renews it when due, after 60 of its 90 days, checking every night and whenever the WAN
-  comes up.
-- **The name in the LAN and the VPN** leads to the router itself; everyone else gets the
-  home's public address. VPN devices therefore connect to the VPN by a name under it, such as
-  `vpn.name.duckdns.org`: DuckDNS answers it with the same address, and the router leaves it
-  alone, so a device asking through the tunnel cannot lose its way back.
+  comes up. DuckDNS holds one such record at a time, so the certificate covers the names under
+  the DuckDNS one (`*.name.duckdns.org`), not that name itself.
+- **nginx** takes ports 80 and 443 and passes each name on to its site. LuCI's own web server
+  moves to port 8443, where it stays reachable directly, at `https://192.168.2.1:8443`, should
+  nginx fail. A device in `SITES` keeps its own certificate; browsers only see the router's.
+- **The names in the LAN and the VPN** lead to the router; everyone else gets the home's
+  public address, where nothing is open. VPN devices connect to the VPN by a name the router
+  leaves alone, such as `vpn.name.duckdns.org`: DuckDNS answers every name under its own with
+  the home's address, and a device asking through the tunnel cannot lose its way back.
 - **Flashing** keeps the account and the certificate, which live on the data partition, so
   a flash does not ask Let's Encrypt for a new one.
-- **`odyssey.lan` and the address** keep working, with a browser warning, as the certificate
-  only names the DuckDNS one. If renewals stop, for example without DuckDNS, it expires after
-  90 days, and both names show the warning.
-- **Home Assistant** gets a copy in its `ssl` folder, and uses it once told to, in its own
-  settings: under Settings → System → Network → HTTP server, set the SSL certificate path to
-  `/config/ssl/fullchain.pem` and the SSL key path to `/config/ssl/privkey.pem`, save, and
-  confirm the change within 5 minutes of its restart, at `https://name.duckdns.org:8123`,
-  or it rolls back. From then on the router restarts it after every renewal. It only
-  answers over HTTPS then: `http://` addresses, like the companion app's, need changing to
-  `https://`, and its Home Assistant URL for the local network to the DuckDNS name.
+- **`odyssey.lan` and the address** still open LuCI, with a browser warning. If renewals stop,
+  for example without DuckDNS, the certificate expires after 90 days, and every name shows the
+  warning.
+- **Home Assistant** needs two things set once, in its own settings under Settings → System →
+  Network → HTTP server:
+  - SSL/TLS: SSL certificate path `/config/ssl/fullchain.pem`, SSL key path
+    `/config/ssl/privkey.pem`. The router keeps both files current, and restarts it after
+    every renewal.
+  - Reverse proxy: switch on Trust X-Forwarded-For, and add `127.0.0.1` and `::1` under
+    Trusted proxies. Without that it refuses what comes through nginx.
+
+  Save, and confirm the change within 5 minutes of its restart, or it rolls back. Until then
+  `https://ha.name.duckdns.org:8123` reaches it directly. Afterwards, point the companion app
+  and its Home Assistant URL for the local network at `https://ha.name.duckdns.org`.
 - **Trying it out**: `LETSENCRYPT=staging` asks Let's Encrypt's test service, whose
   certificates browsers do not trust, without counting against its limit of 5 identical
   certificates a week.
@@ -183,8 +200,8 @@ changed one is recreated, and a missing image is downloaded first. A blank disk 
 ends up with the containers running, without anything done by hand.
 
 [Home Assistant](https://www.home-assistant.io) is the one project so far, reachable at
-`http://odyssey.lan:8123`, or `https://name.duckdns.org:8123` with the
-[HTTPS certificate](#https-certificate). Its settings are in `/mnt/data/homeassistant/config` on the data
+`http://odyssey.lan:8123`, or `https://ha.name.duckdns.org` with the
+[sites by name](#sites-by-name). Its settings are in `/mnt/data/homeassistant/config` on the data
 partition. It is handed the Zigbee stick named in `ZIGBEE_DEVICE` and does not start while
 that device is missing; with the setting empty it runs without one. `HOME_ASSISTANT=0`
 leaves it out altogether.

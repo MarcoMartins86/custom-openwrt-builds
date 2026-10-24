@@ -1,11 +1,13 @@
 # https://openwrt.org/docs/guide-user/services/tls/acmesh
-# A Let's Encrypt certificate for the dynamic DNS name, so that LuCI and Home
-# Assistant open by that name without a browser warning. acme.sh proves the name
-# to Let's Encrypt through a DNS record it sets at DuckDNS, so nothing is opened
-# to the outside. The account and the certificate live on the data partition: a
-# reflash keeps them, where asking for a new certificate each time would soon
-# run into Let's Encrypt's limit of 5 identical ones a week.
-# /usr/libexec/acme-install hands the certificate to LuCI and Home Assistant.
+# A Let's Encrypt certificate for every name under the dynamic DNS one, so that
+# the router's sites open by name without a browser warning (99-sites_config).
+# acme.sh proves the name to Let's Encrypt through a DNS record it sets at
+# DuckDNS, so nothing is opened to the outside. DuckDNS holds one such record at
+# a time, so the certificate covers the names under it but not the name itself.
+# The account and the certificate live on the data partition: a reflash keeps
+# them, where asking for a new certificate each time would soon run into Let's
+# Encrypt's limit of 5 identical ones a week. /usr/libexec/acme-install hands
+# the certificate to the web servers that use it.
 . /etc/build.env
 [ -s /etc/ddns.env ] && . /etc/ddns.env
 if [ -n "${LETSENCRYPT}" ] && [ "${DDNS_PROVIDER}" = duckdns.org ] && [ -n "${DDNS_TOKEN}" ] \
@@ -29,30 +31,13 @@ set acme.@acme[0].account_email="acme@${DDNS_HOST}"
 set acme.router=cert
 set acme.router.enabled="1"
 set acme.router.staging="${STAGING}"
-add_list acme.router.domains="${DDNS_HOST}"
+add_list acme.router.domains="*.${DDNS_HOST}"
 set acme.router.validation_method="dns"
 set acme.router.dns="dns_duckdns"
 add_list acme.router.credentials='DuckDNS_Token="${DDNS_TOKEN}"'
 set acme.router.dns_wait="120"
 set acme.router.key_type="ec256"
 commit acme
-EOI
-	# For LAN and VPN devices the name leads to the router itself: outside it
-	# points at the modem, which would not pass the connection on. VPN devices
-	# reach the VPN by a name under it instead, such as vpn.<name>, which DuckDNS
-	# answers with the same address and the router leaves alone: asking through
-	# the tunnel for the name it connects to, a device would otherwise get the
-	# inside address and lose the tunnel. "view-first" leaves every other name,
-	# adblock's included, to the usual rules.
-	for range in "${LAN_ADDRESS}" "${VPN_ADDRESS}"; do
-		eval "$(ipcalc.sh "${range}")"
-		echo "access-control-view: ${NETWORK}/${PREFIX} inside" >> /etc/unbound/unbound_srv.conf
-	done
-	cat >> /etc/unbound/unbound_ext.conf << EOI
-view:
-	name: "inside"
-	view-first: yes
-	local-data: "${DDNS_HOST}. A ${LAN_ADDRESS%/*}"
 EOI
 	# A certificate kept from before a reflash goes straight back into use
 	/usr/libexec/acme-install
