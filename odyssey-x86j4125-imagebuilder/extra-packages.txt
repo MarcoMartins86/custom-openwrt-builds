@@ -4,4 +4,4 @@
 
 # Argon theme, https://github.com/jerrykuku/luci-theme-argon. Since 3.0 it includes its
 # settings page; luci-app-argon-config is only kept for installations being upgraded.
-d21fe8574183e4d78b6347431b5e0a4e48666453435b5d07d2ca44de2b491654  https://github.com/jerrykuku/luci-theme-argon/releases/download/v3.0.0/luci-theme-argon-3.0.0-r2.apk
+82c36abe5dbd958f733b620c4c66b160f1b3470feaf248921baae77b2b5d0f44  https://github.com/jerrykuku/luci-theme-argon/releases/download/v3.1.0/luci-theme-argon-3.1.0-r1.apk
