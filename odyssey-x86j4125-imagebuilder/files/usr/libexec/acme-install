@@ -1,8 +1,9 @@
 #!/bin/sh
-# Puts the router's Let's Encrypt certificate to use in LuCI and Home Assistant:
+# Puts the router's Let's Encrypt certificate to use in the web servers: LuCI's,
+# the proxy serving the names under it (99-sites_config) and Home Assistant. Run
 # at the first boot after a flash, whenever the WAN comes up, and after every
-# issue or renewal (/etc/hotplug.d). Each gets its own copy, so that LuCI keeps
-# its certificate without the data partition, and Home Assistant finds it inside
+# issue or renewal (/etc/hotplug.d). Each gets its own copy, so that the router's
+# own keep theirs without the data partition, and Home Assistant finds it inside
 # its container. Only what changed is touched, and only then restarted.
 HOST="$(uci -q get acme.router.domains | cut -d ' ' -f 1)"
 CRT="/etc/ssl/acme/${HOST}.fullchain.crt"
@@ -31,6 +32,17 @@ fi
 if [ -n "${changed}" ]; then
 	logger -t acme-install "LuCI uses the certificate for ${HOST}"
 	/etc/init.d/uhttpd running && /etc/init.d/uhttpd reload
+fi
+
+# The proxy
+if [ -d /etc/nginx/conf.d ]; then
+	changed=""
+	copy "${CRT}" /etc/nginx/conf.d/sites.crt && changed=1
+	copy "${KEY}" /etc/nginx/conf.d/sites.key && changed=1
+	if [ -n "${changed}" ]; then
+		logger -t acme-install "The sites use the certificate for ${HOST}"
+		/etc/init.d/nginx running && /etc/init.d/nginx reload
+	fi
 fi
 
 # Home Assistant, when it runs here, gets the files in its ssl/ folder. It

@@ -1,0 +1,109 @@
+# https://openwrt.org/docs/guide-user/services/webserver/nginx
+# With the Let's Encrypt certificate (99-acme_config), the router's sites open
+# by name: LuCI at <ROUTER_NAME>.<name>, Home Assistant at <HOME_ASSISTANT_NAME>.
+# <name>, and whatever SITES adds. nginx takes ports 80 and 443 and passes each
+# name on to its site; LuCI's own web server moves to port 8443, where it also
+# stays reachable directly should nginx fail.
+. /etc/build.env
+HOST="$(uci -q get acme.router.domains | sed 's/^\*\.//')"
+if [ -n "${HOST}" ] && [ -x /etc/init.d/nginx ]; then
+	LAN_IP="${LAN_ADDRESS%/*}"
+	LUCI=https://127.0.0.1:8443
+	SITE_LIST="${ROUTER_NAME}=${LUCI}"
+	[ "${HOME_ASSISTANT}" = 1 ] && [ -n "${HOME_ASSISTANT_NAME}" ] \
+		&& SITE_LIST="${SITE_LIST} ${HOME_ASSISTANT_NAME}=https://127.0.0.1:8123"
+	SITE_LIST="${SITE_LIST} ${SITES}"
+
+	# nginx's own servers would serve LuCI through uWSGI on the same ports
+	uci -q batch << EOI
+delete uhttpd.main.listen_http
+delete uhttpd.main.listen_https
+add_list uhttpd.main.listen_https="0.0.0.0:8443"
+add_list uhttpd.main.listen_https="[::]:8443"
+commit uhttpd
+delete nginx._lan
+delete nginx._redirect2ssl
+commit nginx
+EOI
+
+	# Until Let's Encrypt's certificate is there, one of the router's own
+	CONF=/etc/nginx/conf.d
+	[ -s "${CONF}/sites.crt" ] || (umask 077; openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 \
+		-nodes -days 397 -subj "/CN=${ROUTER_NAME}.lan" -addext "subjectAltName=DNS:${ROUTER_NAME}.lan" \
+		-keyout "${CONF}/sites.key" -out "${CONF}/sites.crt" 2> /dev/null)
+
+	# nginx's template already sets the upload limit and small header buffers
+	# for all servers, so each server sets its own. The headers let Home
+	# Assistant's live updates (websockets) through.
+	{
+		cat << EOI
+# Written on the first boot by /etc/uci-defaults/99-sites_config: each name
+# under ${HOST} passed on to its site, with the router's certificate.
+http2 on;
+ssl_certificate ${CONF}/sites.crt;
+ssl_certificate_key ${CONF}/sites.key;
+map \$http_upgrade \$connection_upgrade {
+	default upgrade;
+	'' close;
+}
+proxy_http_version 1.1;
+proxy_set_header Host \$host;
+proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto \$scheme;
+proxy_set_header Upgrade \$http_upgrade;
+proxy_set_header Connection \$connection_upgrade;
+proxy_buffering off;
+proxy_read_timeout 1h;
+
+server {
+	listen 80 default_server;
+	listen [::]:80 default_server;
+	return 301 https://\$host\$request_uri;
+}
+
+# Any other name, such as ${ROUTER_NAME}.lan, or an address: LuCI, with a warning
+server {
+	listen 443 ssl default_server;
+	listen [::]:443 ssl default_server;
+	client_max_body_size 0;
+	large_client_header_buffers 4 16k;
+	location / {
+		proxy_pass ${LUCI};
+	}
+}
+EOI
+		for site in ${SITE_LIST}; do
+			cat << EOI
+
+server {
+	listen 443 ssl;
+	listen [::]:443 ssl;
+	server_name ${site%%=*}.${HOST};
+	client_max_body_size 0;
+	large_client_header_buffers 4 16k;
+	location / {
+		proxy_pass ${site#*=};
+	}
+}
+EOI
+		done
+	} > "${CONF}/sites.conf"
+
+	# For LAN and VPN devices the names lead to the router: outside they point
+	# at the modem, which would not pass the connection on. VPN devices reach
+	# the VPN by another name under it, such as vpn.<name>, which DuckDNS answers
+	# with the home's address and the router leaves alone: asking through the
+	# tunnel for the name it connects to, a device would otherwise get the
+	# inside address and lose the tunnel. "view-first" leaves every other name,
+	# adblock's included, to the usual rules.
+	for range in "${LAN_ADDRESS}" "${VPN_ADDRESS}"; do
+		eval "$(ipcalc.sh "${range}")"
+		echo "access-control-view: ${NETWORK}/${PREFIX} inside" >> /etc/unbound/unbound_srv.conf
+	done
+	{
+		printf 'view:\n\tname: "inside"\n\tview-first: yes\n'
+		for site in ${SITE_LIST}; do
+			printf '\tlocal-data: "%s.%s. A %s"\n' "${site%%=*}" "${HOST}" "${LAN_IP}"
+		done
+	} >> /etc/unbound/unbound_ext.conf
+fi
