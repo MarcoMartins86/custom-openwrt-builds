@@ -47,6 +47,10 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'/etc/init.d/watchcat running && [ "$(uci -q get watchcat.wan.mode)" = restart_iface ] || f="$f watchcat"' \
 	'[ "$(uci -q get banip.global.ban_backupdir)" = /mnt/data/banip/backup ] || f="$f banip-backups"' \
 	'[ -z "'"${BANIP_REFRESH_HOUR}"'" ] || grep -q "banip reload" /etc/crontabs/root || f="$f no-banip-refresh"' \
+	'A="'"${LETSENCRYPT:+${DDNS_HOST}}"'"' \
+	'[ -z "$A" ] || { [ "$(uci -q get acme.router.dns)" = dns_duckdns ] && [ -L /etc/acme ] && [ -L /etc/ssl/acme ]; } || f="$f acme"' \
+	'[ -z "$A" ] || { nslookup "$A" '"${LAN_ADDRESS%/*}"' | grep -q "Address.* '"${LAN_ADDRESS%/*}"'$" && nslookup "$A" '"${VPN_ADDRESS%/*}"' | grep -q "Address.* '"${LAN_ADDRESS%/*}"'$"; } || f="$f inside-dns"' \
+	'[ -z "$A" ] || ! nslookup "vpn.$A" '"${LAN_ADDRESS%/*}"' | grep -q "Address.* '"${LAN_ADDRESS%/*}"'$" || f="$f vpn-name-overridden"' \
 	'i=0; while [ $i -lt 40 ] && [ ! -f /mnt/data/rrd/'"${ROUTER_NAME}"'/diskhealth-sda/temperature.rrd ]; do sleep 2; i=$((i+1)); done' \
 	'[ $i -lt 40 ] || f="$f disk-health-graph"' \
 	'[ -z "'"${CONTAINER_UPDATE_DAY}"'" ] || grep -q "compose update" /etc/crontabs/root || f="$f no-container-update"' \

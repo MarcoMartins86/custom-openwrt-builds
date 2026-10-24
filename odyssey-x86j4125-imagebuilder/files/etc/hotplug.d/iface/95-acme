@@ -1,0 +1,6 @@
+# When the WAN comes up: put a certificate that is already there to use, then
+# ask for one if there is none yet, or renew it when due; acme.sh leaves it alone
+# otherwise. The nightly renewal misses a router that is off at midnight.
+[ "${ACTION}" = ifup ] && [ "${INTERFACE}" = wan ] && uci -q get acme.router > /dev/null || exit 0
+/usr/libexec/acme-install
+/etc/init.d/acme renew > /dev/null 2>&1

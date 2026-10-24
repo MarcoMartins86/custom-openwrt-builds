@@ -1,0 +1,5 @@
+# After Let's Encrypt has issued or renewed the router's certificate, see
+# /usr/libexec/acme-install
+case "${ACTION}" in
+issued|renewed) /usr/libexec/acme-install ;;
+esac

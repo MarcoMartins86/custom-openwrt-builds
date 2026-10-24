@@ -1,0 +1,54 @@
+#!/bin/sh
+# Puts the router's Let's Encrypt certificate to use in LuCI and Home Assistant:
+# at the first boot after a flash, whenever the WAN comes up, and after every
+# issue or renewal (/etc/hotplug.d). Each gets its own copy, so that LuCI keeps
+# its certificate without the data partition, and Home Assistant finds it inside
+# its container. Only what changed is touched, and only then restarted.
+HOST="$(uci -q get acme.router.domains | cut -d ' ' -f 1)"
+CRT="/etc/ssl/acme/${HOST}.fullchain.crt"
+KEY="/etc/ssl/acme/${HOST}.key"
+[ -n "${HOST}" ] && [ -s "${CRT}" ] && [ -s "${KEY}" ] || exit 0
+
+# Copies a file over another whose content differs, readable by root only.
+# Fails when there was nothing to copy.
+copy() {
+	cmp -s "$1" "$2" && return 1
+	(umask 077; cp "$1" "$2.new") && mv "$2.new" "$2"
+}
+
+# LuCI
+changed=""
+copy "${CRT}" /etc/uhttpd-acme.crt && changed=1
+copy "${KEY}" /etc/uhttpd-acme.key && changed=1
+if [ "$(uci -q get uhttpd.main.cert)" != /etc/uhttpd-acme.crt ]; then
+	uci -q batch << EOI
+set uhttpd.main.cert="/etc/uhttpd-acme.crt"
+set uhttpd.main.key="/etc/uhttpd-acme.key"
+commit uhttpd
+EOI
+	changed=1
+fi
+if [ -n "${changed}" ]; then
+	logger -t acme-install "LuCI uses the certificate for ${HOST}"
+	/etc/init.d/uhttpd running && /etc/init.d/uhttpd reload
+fi
+
+# Home Assistant, when it runs here, gets the files in its ssl/ folder. It
+# serves HTTPS once they are set as its SSL certificate and key paths, under
+# Settings → System → Network → HTTP server; it keeps that in .storage/http, as
+# its YAML http: section is deprecated. It reads the files when it starts, so it
+# restarts when they change, if it uses them.
+CONFIG=/mnt/data/homeassistant/config
+[ -f /etc/compose/homeassistant/docker-compose.yml ] && [ -d "${CONFIG}" ] || exit 0
+changed=""
+mkdir -p "${CONFIG}/ssl"
+copy "${CRT}" "${CONFIG}/ssl/fullchain.pem" && changed=1
+copy "${KEY}" "${CONFIG}/ssl/privkey.pem" && changed=1
+[ -n "${changed}" ] || exit 0
+if [ "$(jsonfilter -i "${CONFIG}/.storage/http" -e '@.data.stable.ssl_certificate' 2> /dev/null)" != /config/ssl/fullchain.pem ]; then
+	logger -t acme-install "Home Assistant can use the certificate for ${HOST}:" \
+		"set /config/ssl/fullchain.pem and /config/ssl/privkey.pem as its SSL certificate and key paths"
+elif [ -n "$(docker ps -q -f name='^homeassistant$' 2> /dev/null)" ]; then
+	logger -t acme-install "Home Assistant restarts to use the certificate for ${HOST}"
+	docker restart homeassistant > /dev/null
+fi
