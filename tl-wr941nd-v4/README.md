@@ -148,23 +148,35 @@ what it needs, but with only 26 KB to spare.
 
 ## Test
 
-The device cannot be emulated, so nothing boots the image before it is flashed.
-`test/first-boot.sh` checks what can be checked without it: it runs the image's first-boot
-scripts the way the first boot does, in OpenWrt's rootfs container for the release, with
-the device's board scripts and the image's `/etc` taken from the build, and checks the
-settings they leave. `test/wifi` stands in for the radio there. It needs Docker, runs after
-`build.sh`, and exits with 0 when every check passes.
+The device itself cannot be emulated: QEMU has no model of its Atheros AR7240 chip, so the
+image's kernel cannot boot there. Its programs can, as its processor is a common MIPS one.
+Both tests run after `build.sh` and exit with 0 when every check passes:
 
-What only the device can show: that the kernel, the switch and the Wi-Fi driver work, and
-how much of the 32 MB of memory is left.
+- **`test/first-boot.sh`** runs the image's first-boot scripts the way the first boot does,
+  on the image's own root file system as a container, its MIPS programs under QEMU's user
+  mode, with `test/wifi` in place of the radio. It checks the settings they leave: the
+  bridge with the WAN port, the address, Wi-Fi, SSH, zram, and the kernel's VLAN support,
+  which the LAN ports need. A command the image left out makes it fail. It takes seconds.
+- **`test/malta-boot.sh`** boots the image's root file system on QEMU's MIPS Malta board with
+  32 MB of memory, with OpenWrt's Malta kernel for the release and its builds of the image's
+  kernel modules, downloaded to `dl/`. It checks that the first boot ran, that the services
+  start and that no script misses a command. Then it fills `/tmp`, which is memory, until
+  the kernel swaps to zram, and checks that nothing had to be ended. It reports the memory
+  left, and an estimate for the device, whose kernel needs about 6 MB less than Malta's. It
+  takes about two minutes and keeps the console in `test/malta-serial.log`.
+
+They need Docker, with QEMU's user mode registered for MIPS programs, and QEMU's MIPS boards;
+on Ubuntu: `sudo apt-get install qemu-user-binfmt qemu-system-mips`.
+
+What only the device can show: that its kernel, switch and Wi-Fi driver work.
 
 ## Checks and updates
 
 Every pull request and every change to `main` that touches this folder is built on GitHub
-with the settings in `.env`, and checked with `test/first-boot.sh`
+with the settings in `.env`, and checked with both [tests](#test)
 ([tl-wr941nd-v4.yml](../.github/workflows/tl-wr941nd-v4.yml)). That build uses no secrets, so
 its image has none of the private settings; the image to flash is built on your own machine
-as above. The run keeps the image's package list.
+as above. The run keeps the image's package list and the console of the Malta boot.
 
 [Renovate](https://docs.renovatebot.com/) opens a pull request when a new OpenWrt release has
 its SDK container ([renovate.json](../renovate.json)). The build then shows whether the new
@@ -223,6 +235,9 @@ new release.
 - **No package manager**: everything comes with a new image.
 - **The system log** is only kept in memory, and read with `logread`.
 - **Memory**: 32 MB is tight. The access point runs no more than the kernel, procd, netifd,
-  hostapd, dropbear and logd. When it runs short, the kernel swaps to zram, which compresses
-  what it swaps out and keeps it in memory; `free` and `cat /proc/swaps` show how much is
-  in use. It only delays running out: if zram keeps filling up, something has to go.
+  hostapd, dropbear and logd, which leave about 12 MB free by the Malta test's estimate.
+  When it runs short, the kernel swaps to zram, which compresses what it swaps out and
+  keeps it in memory; `free` and `cat /proc/swaps` show how much is in use. It only delays
+  running out: if zram fills up too, the kernel ends processes, and procd starts them again.
+- **`/tmp` is memory**, and ending a process does not free a file there. A file that fills
+  memory and zram leaves the kernel ending services over and over until it is deleted.

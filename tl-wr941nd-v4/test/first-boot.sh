@@ -1,11 +1,12 @@
 #!/bin/sh
 # Runs the image's first-boot scripts the way the access point runs them on its first
-# boot, and checks the settings they leave. The device cannot be emulated, but the
-# scripts only need OpenWrt's tools: they run in OpenWrt's rootfs container for the
-# release, with this device's board scripts and the image's /etc from the build, and
-# test/wifi in place of the radio. Exit status 0 means every check passed.
+# boot, and checks the settings they leave. The device cannot be emulated, but its
+# programs can: the image's root file system from the build runs as a container, its MIPS
+# programs under QEMU's user mode, with test/wifi in place of the radio.
+# Exit status 0 means every check passed.
 #
-# usage: first-boot.sh   (after build.sh)
+# usage: first-boot.sh   (after build.sh; needs Docker, and QEMU's user mode registered for
+#                         MIPS programs, as Ubuntu's qemu-user-binfmt does)
 Q="$(cd "$(dirname "$0")" && pwd)"
 . "$Q/../.env"
 [ -f "$Q/../private/.env" ] && . "$Q/../private/.env"
@@ -13,36 +14,37 @@ ROOT="$(ls -d "$Q"/../openwrt/build_dir/target-*/root-ath79 2> /dev/null)"
 KCONFIG="$(ls "$Q"/../openwrt/build_dir/target-*/linux-ath79_tiny/linux-*/.config 2> /dev/null)"
 [ -f "${ROOT}/etc/build.env" ] && [ -f "${KCONFIG}" ] ||
 	{ echo "no image files in openwrt/build_dir; run build.sh first" >&2; exit 1; }
+[ -e /proc/sys/fs/binfmt_misc/qemu-mips ] ||
+	{ echo "QEMU's user mode is not registered for MIPS programs; install qemu-user-binfmt" >&2; exit 1; }
+
+# The root file system as the image has it, owned by root
+IMAGE="tl-wr941nd-v4-rootfs:test"
+tar -C "${ROOT}" --owner=0 --group=0 --numeric-owner -c . | docker import - "${IMAGE}" > /dev/null || exit 1
+trap 'docker rmi "${IMAGE}" > /dev/null 2>&1' EXIT
 
 # Kept as short commands, one per check, collecting what is wrong in $f. The Wi-Fi
 # password is compared there and never printed.
 OUT="$(docker run --rm -i --entrypoint /bin/sh \
-	-v "${ROOT}/etc:/image/etc:ro" -v "$Q/wifi:/image/wifi:ro" -v "${KCONFIG}:/image/kernel.config:ro" \
-	"ghcr.io/openwrt/rootfs:x86-64-v${OPENWRT_VERSION}" << 'EOS'
-# The device, as its board scripts describe it to OpenWrt
-mkdir -p /tmp/sysinfo
+	-v "$Q/wifi:/test/wifi:ro" -v "${KCONFIG}:/test/kernel.config:ro" "${IMAGE}" << 'EOS'
+# What the boot sets up before the defaults, and the device as its board scripts
+# describe it to OpenWrt
+mkdir -p /var/lock /var/run /tmp/.uci /tmp/sysinfo
 echo tplink,tl-wr941-v4 > /tmp/sysinfo/board_name
 echo "TP-Link TL-WR941ND v4" > /tmp/sysinfo/model
-rm -rf /etc/board.d /etc/uci-defaults /etc/config/network /etc/config/system /etc/board.json
-cp -a /image/etc/board.d /image/etc/uci-defaults /etc/
-cp -p /image/etc/config/dropbear /etc/config/
-cp -p /image/etc/build.env /etc/
-[ -f /image/etc/wifi.env ] && cp -p /image/etc/wifi.env /etc/
-[ -d /image/etc/dropbear ] && mkdir -p /etc/dropbear && cp -a /image/etc/dropbear/. /etc/dropbear/
-cp /image/wifi /sbin/wifi
-chmod 755 /sbin/wifi
+cp /test/wifi /sbin/wifi
+. /etc/build.env
+WIFI_KEY=""
+[ -f /etc/wifi.env ] && . /etc/wifi.env
 board_detect > /dev/null
 config_generate > /dev/null
 LAN_PORTS="$(jsonfilter -i /etc/board.json -e '@.network.lan.ports[*]' -e '@.network.lan.device' | xargs)"
 # The first boot: OpenWrt's boot script applies the defaults, before the radio's
 # settings are necessarily there
-eval "$(sed -n '/^uci_apply_defaults()/,/^}/p' /image/etc/init.d/boot)"
+eval "$(sed -n '/^uci_apply_defaults()/,/^}/p' /etc/init.d/boot)"
 uci_apply_defaults > /dev/null 2>&1
 cd /
-. /image/etc/build.env
-WIFI_KEY=""
-[ -f /image/etc/wifi.env ] && . /image/etc/wifi.env
 f=""
+[ "$(uname -m)" = mips ] || f="$f not-the-image-programs"
 [ -z "$(ls /etc/uci-defaults)" ] || f="$f first-boot-scripts-left:$(ls /etc/uci-defaults | tr '\n' ,)"
 BRIDGE="$(uci show network | sed -n "s/^\(network\.[^.]*\)\.name='br-lan'$/\1/p")"
 PORTS=" $(uci -q get "$BRIDGE.ports") "
@@ -52,7 +54,7 @@ for p in $LAN_PORTS; do
 done
 # A port on a VLAN of the switch, such as eth1.1, needs the kernel's VLAN support
 case "$PORTS" in
-	*.*) grep -q '^CONFIG_VLAN_8021Q=y' /image/kernel.config || f="$f kernel-without-vlans" ;;
+	*.*) grep -q '^CONFIG_VLAN_8021Q=y' /test/kernel.config || f="$f kernel-without-vlans" ;;
 esac
 [ "$(uci -q get network.lan.device)" = br-lan ] || f="$f lan-device"
 uci -q get network.wan > /dev/null && f="$f wan-left"
@@ -76,7 +78,7 @@ if [ -s /etc/dropbear/authorized_keys ]; then A=off; else A=on; fi
 if [ -n "$WIFI_KEY" ]; then D=0; else D=1; fi
 [ "$(uci -q get wireless.default_radio0.disabled)" = "$D" ] || f="$f wifi-switch"
 [ -e /etc/wifi.env ] && f="$f wifi-password-file-left"
-ls /image/etc/rc.d | grep -q "^S[0-9]*zram$" || f="$f zram-not-started"
+ls /etc/rc.d | grep -q "^S[0-9]*zram$" || f="$f zram-not-started"
 echo "--- settings made:"
 uci show network | grep -E '^network\.(lan|@device\[[0-9]\])\.'
 uci show system | grep -E '\.(hostname|zonename|timezone)='

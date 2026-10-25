@@ -1,7 +1,8 @@
-# Builds the TL-WR941ND v4 image from OpenWrt's source with the public settings in .env,
-# and runs its first boot's scripts for test/first-boot.sh, on every pull request and every
-# change to main that touches the build. It uses no secrets: the image to flash, with the
-# settings in private/.env, is built on your own machine.
+# Builds the TL-WR941ND v4 image from OpenWrt's source with the public settings in .env, and
+# tests it under QEMU: its first boot's scripts on its own MIPS programs (test/first-boot.sh),
+# and its root file system booted on QEMU's MIPS Malta board (test/malta-boot.sh). On every
+# pull request and every change to main that touches the build. It uses no secrets: the image
+# to flash, with the settings in private/.env, is built on your own machine.
 name: TL-WR941ND v4
 
 on:
@@ -58,14 +59,30 @@ jobs:
           chmod -R a+rwX binaries dl openwrt
           docker compose run --rm builder
 
+      # The container built as user 1000, and some of the image's files are only readable
+      # by their owner, such as /etc/shadow
+      - name: Hand the image's files to the runner
+        run: sudo chown -R "$(id -u):$(id -g)" openwrt/build_dir/target-*/root-ath79
+
+      # QEMU's user mode, registered for MIPS programs, and its MIPS boards
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-user-binfmt qemu-system-mips
+
       - name: First-boot test
         run: sh test/first-boot.sh
 
-      # The package list, to see what an update changed
-      - name: Keep the manifest
+      - name: Boot test on QEMU's Malta board
+        run: sh test/malta-boot.sh
+
+      # The package list, to see what an update changed, and the console of the Malta boot
+      - name: Keep the manifest and the console log
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: tl-wr941nd-v4-manifest
-          path: tl-wr941nd-v4/binaries/*.manifest
+          name: tl-wr941nd-v4-manifest-and-console
+          path: |
+            tl-wr941nd-v4/binaries/*.manifest
+            tl-wr941nd-v4/test/malta-serial.log
           if-no-files-found: ignore
