@@ -6,7 +6,8 @@
 # Of the running system only the SSH host key is kept, when it is of the kind the image
 # uses (Ed25519), so that the access point keeps its identity. The first-boot scripts set
 # up everything else from the image. A backup of the whole configuration is saved first,
-# to private/backups/ on this machine.
+# to private/backups/ on this machine. A running system that does not take the SSH key asks
+# for its root password, once.
 # https://openwrt.org/docs/guide-user/installation/generic.sysupgrade
 #
 # usage: flash.sh [-y] [-F] [image.bin]
@@ -43,15 +44,31 @@ done
 IMAGE="${1:-${HERE}/binaries/openwrt-${OPENWRT_VERSION}-ath79-tiny-tplink_tl-wr941-v4-squashfs-sysupgrade.bin}"
 [ -f "${IMAGE}" ] || { echo "no image found; build one first or name it" >&2; exit 1; }
 
-# Runs a command on the access point at ${HOST}
+# Runs a command on the access point at ${HOST}, over the connection in ${MUX} when set
 HOST="${ROUTER}"
+MUX=""
 router() {
 	ssh -p "${PORT}" -o BatchMode=yes -o ConnectTimeout=8 -o StrictHostKeyChecking=accept-new \
 		-o ServerAliveInterval=2 -o ServerAliveCountMax=3 \
+		${MUX:+-o ControlPath="${MUX}"} \
 		${KEY:+-i "${KEY}" -o IdentitiesOnly=yes} \
 		${KNOWN_HOSTS:+-o UserKnownHostsFile="${KNOWN_HOSTS}"} \
 		"root@${HOST}" "$@"
 }
+
+# Every command up to the flash goes over one connection, opened here. A running system
+# that does not take the key, such as OpenWrt 19.07 the first time, asks for its root
+# password, and only once. 19.07's SSH server only offers an RSA host key signed with SHA-1,
+# which OpenSSH no longer accepts unless asked to.
+MASTER="$(mktemp -d)/ssh"
+trap 'ssh -o ControlPath="${MASTER}" -O exit "root@${ROUTER}" > /dev/null 2>&1; rm -rf "${MASTER%/ssh}"' EXIT
+ssh -p "${PORT}" -fN -o ControlMaster=yes -o ControlPath="${MASTER}" -o ControlPersist=yes \
+	-o ConnectTimeout=8 -o StrictHostKeyChecking=accept-new -o HostKeyAlgorithms=+ssh-rsa \
+	-o ServerAliveInterval=2 -o ServerAliveCountMax=3 \
+	${KEY:+-i "${KEY}" -o IdentitiesOnly=yes} \
+	${KNOWN_HOSTS:+-o UserKnownHostsFile="${KNOWN_HOSTS}"} \
+	"root@${ROUTER}"
+MUX="${MASTER}"
 
 echo "Uploading $(basename "${IMAGE}") to ${ROUTER}"
 router 'cat > /tmp/firmware.bin' < "${IMAGE}"
@@ -105,9 +122,11 @@ if [ -z "${KEEP}" ] && [ -n "${KNOWN_HOSTS}" ] && [ -f "${KNOWN_HOSTS}" ]; then
 	ssh-keygen -R "${NEW}" -f "${KNOWN_HOSTS}" > /dev/null 2>&1 || true
 fi
 
-# Back once it runs the release and the first-boot scripts are done
+# Back once it runs the release and the first-boot scripts are done. The image takes the
+# key, over connections of its own.
 echo "Waiting for ${NEW} to come back with OpenWrt ${OPENWRT_VERSION}"
 HOST="${NEW}"
+MUX=""
 start="$(date +%s)"
 while [ $(($(date +%s) - start)) -lt 420 ]; do
 	sleep 5

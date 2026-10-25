@@ -198,17 +198,12 @@ What a flash keeps and what it replaces:
 From OpenWrt 19.07, which this kind of device last got images for:
 
 1. Connect its WAN port to the main router and this machine to one of its LAN ports.
-2. `flash.sh` logs in with keys only. If 19.07 takes your key, put it in LuCI under
-   System → Administration → SSH-Keys and run `ROUTER=<its address now> ./flash.sh`. Its SSH
-   server may not know Ed25519 keys, as small devices leave them out; then flash with its
-   root password instead:
-   ```
-   scp -O binaries/openwrt-*-sysupgrade.bin root@<its address now>:/tmp/firmware.bin
-   ssh root@<its address now> sysupgrade -n /tmp/firmware.bin
-   ```
+2. Run `ROUTER=<its address now> ./flash.sh`. When 19.07 does not take the SSH key, it asks
+   for 19.07's root password, once. 19.07's SSH server only offers an RSA host key signed
+   with SHA-1, which `flash.sh` accepts for this one connection.
 3. 19.07's settings do not carry over. After the flash the access point is at `LAN_ADDRESS`,
-   in the main router's network, with a new SSH host key. This machine needs a new address
-   from the main router: unplug its cable and plug it back in.
+   in the main router's network, with a new SSH host key, and only takes the key. This
+   machine needs a new address from the main router: unplug its cable and plug it back in.
 
 The image lists `tl-wr741nd`, OpenWrt's old name for this board, among the devices it is
 for, so that 19.07 takes it. If 19.07 still refuses it, check the name it uses in
