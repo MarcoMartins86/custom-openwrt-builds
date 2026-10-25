@@ -1,6 +1,7 @@
 # Builds the TL-WR941ND v3 image from OpenWrt's source with the public settings in .env, and
 # tests it under QEMU: its first boot's scripts on its own MIPS programs (test/first-boot.sh),
-# and its root file system booted on QEMU's MIPS Malta board (test/malta-boot.sh). On every
+# its root file system booted on QEMU's MIPS Malta board (test/malta-boot.sh), and its network
+# there, switch and Wi-Fi (test/malta-network.sh). On every
 # pull request and every change to main that touches the build. It uses no secrets: the image
 # to flash, with the settings in private/.env, is built on your own machine.
 name: TL-WR941ND v3
@@ -76,8 +77,11 @@ jobs:
       - name: Boot test on QEMU's Malta board
         run: sh test/malta-boot.sh
 
-      # The package list, to see what an update changed, and the console of the Malta boot
-      - name: Keep the manifest and the console log
+      - name: Network test on QEMU's Malta board
+        run: sh test/malta-network.sh
+
+      # The package list, to see what an update changed, and the consoles of the Malta boots
+      - name: Keep the manifest and the console logs
         if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -85,4 +89,5 @@ jobs:
           path: |
             tl-wr941nd-v3/binaries/*.manifest
             tl-wr941nd-v3/test/malta-serial.log
+            tl-wr941nd-v3/test/malta-network-serial.log
           if-no-files-found: ignore

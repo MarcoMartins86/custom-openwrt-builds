@@ -202,11 +202,25 @@ Both tests run after `build.sh` and exit with 0 when every check passes:
   the kernel swaps to zram, and checks that nothing had to be ended. It reports the memory
   left, and an estimate for the device, whose kernel needs about 6 MB less than Malta's. It
   takes about two minutes and keeps the console in `test/malta-serial.log`.
+- **`test/malta-network.sh`** tests the network the same way, before a flash: the switch's
+  ports have to come up and join the bridge, the bridge has to get `LAN_ADDRESS`, and a Wi-Fi
+  client has to join the access point and reach that address. The kernel's test switch
+  (`dsa_loop`) stands in for the device's, as it takes the same way through DSA and phylink;
+  both are built from the image's kernel source with OpenWrt's Malta SDK, downloaded to
+  `dl/`, and the test switch gets the v3's port names. The first boot takes the board for
+  the v3, so that the image's board scripts make the v3's network. Two virtual radios
+  (`mac80211_hwsim`) stand in for the Wi-Fi: the access point on one, with a test password,
+  and on the other, in a network namespace of its own, a client that joins it and pings the
+  access point. Built against 25.12.6's phylink without `kernel-patches/`, it fails: every
+  port is missing. It takes about two minutes and keeps the console in
+  `test/malta-network-serial.log`.
 
 They need Docker, with QEMU's user mode registered for MIPS programs, and QEMU's MIPS boards;
 on Ubuntu: `sudo apt-get install qemu-user-binfmt qemu-system-mips`.
 
-What only the device can show: that its kernel, switch and Wi-Fi driver work.
+What only the device can show: that its kernel, switch and Wi-Fi driver work. With the
+switch's ports missing, as on the device flashed with 25.12.6, the Wi-Fi client still
+reaches the access point here, where it did not on the device.
 
 ## Checks and updates
 
