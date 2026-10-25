@@ -1,20 +1,20 @@
-# Builds the TL-WR941ND v4 image from OpenWrt's source with the public settings in .env, and
+# Builds the TL-WR941ND v3 image from OpenWrt's source with the public settings in .env, and
 # tests it under QEMU: its first boot's scripts on its own MIPS programs (test/first-boot.sh),
 # and its root file system booted on QEMU's MIPS Malta board (test/malta-boot.sh). On every
 # pull request and every change to main that touches the build. It uses no secrets: the image
 # to flash, with the settings in private/.env, is built on your own machine.
-name: TL-WR941ND v4
+name: TL-WR941ND v3
 
 on:
   pull_request:
     paths:
-      - "tl-wr941nd-v4/**"
-      - ".github/workflows/tl-wr941nd-v4.yml"
+      - "tl-wr941nd-v3/**"
+      - ".github/workflows/tl-wr941nd-v3.yml"
   push:
     branches: [main]
     paths:
-      - "tl-wr941nd-v4/**"
-      - ".github/workflows/tl-wr941nd-v4.yml"
+      - "tl-wr941nd-v3/**"
+      - ".github/workflows/tl-wr941nd-v3.yml"
   workflow_dispatch:
 
 permissions:
@@ -31,7 +31,7 @@ jobs:
     timeout-minutes: 180
     defaults:
       run:
-        working-directory: tl-wr941nd-v4
+        working-directory: tl-wr941nd-v3
     steps:
       - uses: actions/checkout@v7
 
@@ -45,9 +45,9 @@ jobs:
       - name: Restore the source downloads
         uses: actions/cache@v6
         with:
-          path: tl-wr941nd-v4/dl
-          key: tl-wr941nd-v4-dl-${{ steps.release.outputs.version }}-${{ hashFiles('tl-wr941nd-v4/openwrt.config') }}
-          restore-keys: tl-wr941nd-v4-dl-${{ steps.release.outputs.version }}-
+          path: tl-wr941nd-v3/dl
+          key: tl-wr941nd-v3-dl-${{ steps.release.outputs.version }}-${{ hashFiles('tl-wr941nd-v3/openwrt.config') }}
+          restore-keys: tl-wr941nd-v3-dl-${{ steps.release.outputs.version }}-
 
       - name: Build
         # The SDK container runs as user 1000, the runner as someone else. The runner's
@@ -81,8 +81,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: tl-wr941nd-v4-manifest-and-console
+          name: tl-wr941nd-v3-manifest-and-console
           path: |
-            tl-wr941nd-v4/binaries/*.manifest
-            tl-wr941nd-v4/test/malta-serial.log
+            tl-wr941nd-v3/binaries/*.manifest
+            tl-wr941nd-v3/test/malta-serial.log
           if-no-files-found: ignore

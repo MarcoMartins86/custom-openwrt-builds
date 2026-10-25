@@ -1,14 +1,14 @@
 #!/bin/sh
 # Stands in for "wifi config" of OpenWrt's wifi-scripts, which needs the radio itself.
-# Makes what /lib/wifi/mac80211.uc makes of this device's radio, an Atheros AR9283 on
-# 2.4 GHz behind PCI, when it is not set up yet.
+# Makes what /lib/wifi/mac80211.uc makes of this device's radio, the 2.4 GHz one built into
+# its Atheros AR9132, when it is not set up yet.
 [ "$1" = config ] || exit 0
 uci -q get wireless.radio0 > /dev/null && exit 0
 touch /etc/config/wireless
 uci -q batch << EOI
 set wireless.radio0=wifi-device
 set wireless.radio0.type='mac80211'
-set wireless.radio0.path='platform/ahb/180c0000.pcie-controller/pci0000:00/0000:00:00.0'
+set wireless.radio0.path='platform/ahb/180c0000.wmac'
 set wireless.radio0.band='2g'
 set wireless.radio0.channel='auto'
 set wireless.radio0.htmode='HT20'

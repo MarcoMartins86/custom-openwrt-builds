@@ -115,7 +115,7 @@ fi
 
 # An image left from an earlier build would hide that this one came out too big
 OUT=bin/targets/ath79/tiny
-NAME=openwrt-ath79-tiny-tplink_tl-wr941-v4
+NAME=openwrt-ath79-tiny-tplink_tl-wr941-v2
 rm -f "${OUT}/${NAME}"*
 
 make -j"${JOBS}" download
@@ -130,7 +130,7 @@ MISSING="$(config_missing "${HERE}/kernel.config" "${KCONFIG}")"
 
 # The TP-Link image tool keeps 256 KB of the 3,840 KB it allows for the settings, and
 # makes no image when kernel and root file system do not fit the rest
-KERNEL="$(stat -c %s build_dir/target-*/linux-ath79_tiny/tplink_tl-wr941-v4-kernel.bin)"
+KERNEL="$(stat -c %s build_dir/target-*/linux-ath79_tiny/tplink_tl-wr941-v2-kernel.bin)"
 ROOTFS="$(stat -c %s build_dir/target-*/linux-ath79_tiny/root.squashfs)"
 LIMIT=$((0x3c0000 - 0x40000 - 512))
 echo "Kernel ${KERNEL} bytes, root file system ${ROOTFS}: $((KERNEL + ROOTFS)) of ${LIMIT}"

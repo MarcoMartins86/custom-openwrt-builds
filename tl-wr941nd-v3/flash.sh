@@ -41,7 +41,7 @@ while [ $# -gt 0 ]; do
 	esac
 	shift
 done
-IMAGE="${1:-${HERE}/binaries/openwrt-${OPENWRT_VERSION}-ath79-tiny-tplink_tl-wr941-v4-squashfs-sysupgrade.bin}"
+IMAGE="${1:-${HERE}/binaries/openwrt-${OPENWRT_VERSION}-ath79-tiny-tplink_tl-wr941-v2-squashfs-sysupgrade.bin}"
 [ -f "${IMAGE}" ] || { echo "no image found; build one first or name it" >&2; exit 1; }
 
 # Runs a command on the access point at ${HOST}, over the connection in ${MUX} when set

@@ -1,8 +1,10 @@
-# tl-wr941nd-v4
+# tl-wr941nd-v3
 
-An OpenWrt 25.12 image that turns a [TP-Link TL-WR941ND v4](https://openwrt.org/toh/tp-link/tl-wr941nd)
-into a Wi-Fi access point bridged into the main router's network. The device has 4 MB of
-flash and 32 MB of memory, and OpenWrt stopped building images for such devices after 19.07
+An OpenWrt 25.12 image that turns a [TP-Link TL-WR941ND v3](https://openwrt.org/toh/tp-link/tl-wr941nd)
+into a Wi-Fi access point bridged into the main router's network. The v3 has an Atheros
+AR9132 with the Wi-Fi built in and a Marvell 88E6060 switch; OpenWrt builds it as
+`tplink_tl-wr941-v2`, for the v2 and v3 alike. The device has 4 MB of flash and 32 MB of
+memory, and OpenWrt stopped building images for such devices after 19.07
 ([4/32 warning](https://openwrt.org/supported_devices/432_warning)). This image is built from
 OpenWrt's source instead, with everything an access point does without left out, so that it
 fits; see [Size](#size).
@@ -119,7 +121,8 @@ keeps 256 KB of that for the settings, so kernel and root file system together h
 build here stops instead. Whatever the image leaves of the partition holds the settings.
 
 With OpenWrt's defaults for the device, kernel and root file system come to 5,484,389 bytes.
-What got them down, measured on 25.12.6, in KB of 1,024 bytes:
+What got them down, measured on 25.12.6, in KB of 1,024 bytes. Most steps were measured on
+OpenWrt's profile for the v4, which differs only in its switch; the last change is the v3's:
 
 | Change | Kernel | Root file system |
 |---|---|---|
@@ -131,9 +134,10 @@ What got them down, measured on 25.12.6, in KB of 1,024 bytes:
 | Command-line tools nothing uses, SSH with Ed25519 instead of RSA and without its client, no urngd | | −33 |
 | Added swap compressed in memory (zram), with the kernel's swap support | +16 | +21 |
 | Root file system in blocks of 32 KB instead of 64, for [memory](#memory) | | +81 |
-| **The image now** | **1,503** | **1,946** |
+| The v3's switch driver (DSA) with the kernel parts it needs, less VLAN support, which its switch does without | +20 | +56 |
+| **The image now** | **1,523** | **2,001** |
 
-That leaves 134 KB to spare, and 447 KB of flash for the settings, which the image
+That leaves 59 KB to spare, and 319 KB of flash for the settings, which the image
 takes in steps of 64 KB.
 
 Measured and left for later releases, which tend to grow:
@@ -148,7 +152,7 @@ Measured and left for later releases, which tend to grow:
 | Less flash kept for the settings | up to 192 KB | A patch to the image tool's reserve, and less room for settings |
 
 WPA3, as WPA2/WPA3 mixed, would take hostapd-basic-mbedtls and an mbedtls cut down to what
-it needs: 230 KB, which is 96 KB more than is spare.
+it needs: 230 KB, which is 171 KB more than is spare.
 
 ## Memory
 
@@ -167,7 +171,8 @@ With everything running, hostapd included, about 11.5 MB is left. That is the Ma
 estimate of about 12.5 MB, less the Wi-Fi driver's receive buffers, about 0.6 to 1 MB, which
 it only allocates for a radio. The daemons themselves hold little of their own: netifd
 500 KB, hostapd 400 KB, procd 170 KB, logd 120 KB, and less than 100 KB each for the rest.
-The kernel takes most of what is used.
+The kernel takes most of what is used. For comparison, OpenWrt 19.07 on this device, with a
+smaller kernel but all of a router's services, leaves 12.1 MB.
 
 Measured and left for later:
 
@@ -180,15 +185,15 @@ Measured and left for later:
 
 ## Test
 
-The device itself cannot be emulated: QEMU has no model of its Atheros AR7240 chip, so the
+The device itself cannot be emulated: QEMU has no model of its Atheros AR9132 chip, so the
 image's kernel cannot boot there. Its programs can, as its processor is a common MIPS one.
 Both tests run after `build.sh` and exit with 0 when every check passes:
 
 - **`test/first-boot.sh`** runs the image's first-boot scripts the way the first boot does,
   on the image's own root file system as a container, its MIPS programs under QEMU's user
   mode, with `test/wifi` in place of the radio. It checks the settings they leave: the
-  bridge with the WAN port, the address, Wi-Fi, SSH, zram, and the kernel's VLAN support,
-  which the LAN ports need. A command the image left out makes it fail. It takes seconds.
+  bridge with the WAN port, the address, Wi-Fi, SSH, zram, and VLAN support in the kernel
+  should a port need it. A command the image left out makes it fail. It takes seconds.
 - **`test/malta-boot.sh`** boots the image's root file system on QEMU's MIPS Malta board with
   32 MB of memory, with OpenWrt's Malta kernel for the release and its builds of the image's
   kernel modules, downloaded to `dl/`. It checks that the first boot ran, that the services
@@ -206,7 +211,7 @@ What only the device can show: that its kernel, switch and Wi-Fi driver work.
 
 Every pull request and every change to `main` that touches this folder is built on GitHub
 with the settings in `.env`, and checked with both [tests](#test)
-([tl-wr941nd-v4.yml](../.github/workflows/tl-wr941nd-v4.yml)). That build uses no secrets, so
+([tl-wr941nd-v3.yml](../.github/workflows/tl-wr941nd-v3.yml)). That build uses no secrets, so
 its image has none of the private settings; the image to flash is built on your own machine
 as above. The run keeps the image's package list and the console of the Malta boot.
 
@@ -249,8 +254,9 @@ From OpenWrt 19.07, which this kind of device last got images for:
    in the main router's network, with a new SSH host key, and only takes the key. This
    machine needs a new address from the main router: unplug its cable and plug it back in.
 
-The image lists `tl-wr741nd`, OpenWrt's old name for this board, among the devices it is
-for, so that 19.07 takes it. If 19.07 still refuses it, check the name it uses in
+OpenWrt's ath79 builds of 19.07 know the board as `tplink,tl-wr941-v2`, the name the image
+is built for, so they take it as their own; it also accepts `tl-wr941nd`, the name of the
+older ar71xx builds. If the running system still refuses it, check the name it uses in
 `/tmp/sysinfo/board_name`; `flash.sh -F` flashes the image anyway.
 
 From TP-Link's firmware, flash `openwrt-*-squashfs-factory.bin` in its web interface.

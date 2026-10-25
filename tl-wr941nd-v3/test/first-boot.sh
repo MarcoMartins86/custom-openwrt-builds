@@ -18,7 +18,7 @@ KCONFIG="$(ls "$Q"/../openwrt/build_dir/target-*/linux-ath79_tiny/linux-*/.confi
 	{ echo "QEMU's user mode is not registered for MIPS programs; install qemu-user-binfmt" >&2; exit 1; }
 
 # The root file system as the image has it, owned by root
-IMAGE="tl-wr941nd-v4-rootfs:test"
+IMAGE="tl-wr941nd-v3-rootfs:test"
 tar -C "${ROOT}" --owner=0 --group=0 --numeric-owner -c . | docker import - "${IMAGE}" > /dev/null || exit 1
 trap 'docker rmi "${IMAGE}" > /dev/null 2>&1' EXIT
 
@@ -29,15 +29,18 @@ OUT="$(docker run --rm -i --entrypoint /bin/sh \
 # What the boot sets up before the defaults, and the device as its board scripts
 # describe it to OpenWrt
 mkdir -p /var/lock /var/run /tmp/.uci /tmp/sysinfo
-echo tplink,tl-wr941-v4 > /tmp/sysinfo/board_name
-echo "TP-Link TL-WR941ND v4" > /tmp/sysinfo/model
+echo tplink,tl-wr941-v2 > /tmp/sysinfo/board_name
+echo "TP-Link TL-WR941N/ND v2/v3" > /tmp/sysinfo/model
 cp /test/wifi /sbin/wifi
 . /etc/build.env
 WIFI_KEY=""
 [ -f /etc/wifi.env ] && . /etc/wifi.env
-board_detect > /dev/null
+# It reads the MAC addresses from the flash, which a container does not have: their errors
+# and the empty addresses are the container's, not the image's
+board_detect > /dev/null 2>&1
 config_generate > /dev/null
 LAN_PORTS="$(jsonfilter -i /etc/board.json -e '@.network.lan.ports[*]' -e '@.network.lan.device' | xargs)"
+WAN_PORT="$(jsonfilter -i /etc/board.json -e '@.network.wan.device')"
 # The first boot: OpenWrt's boot script applies the defaults, before the radio's
 # settings are necessarily there
 eval "$(sed -n '/^uci_apply_defaults()/,/^}/p' /etc/init.d/boot)"
@@ -48,11 +51,12 @@ f=""
 [ -z "$(ls /etc/uci-defaults)" ] || f="$f first-boot-scripts-left:$(ls /etc/uci-defaults | tr '\n' ,)"
 BRIDGE="$(uci show network | sed -n "s/^\(network\.[^.]*\)\.name='br-lan'$/\1/p")"
 PORTS=" $(uci -q get "$BRIDGE.ports") "
-case "$PORTS" in *" eth0 "*) ;; *) f="$f wan-port-not-bridged" ;; esac
+[ -n "$WAN_PORT" ] || f="$f no-wan-port"
+case "$PORTS" in *" $WAN_PORT "*) ;; *) f="$f wan-port-not-bridged" ;; esac
 for p in $LAN_PORTS; do
 	case "$PORTS" in *" $p "*) ;; *) f="$f lan-port-$p-not-bridged" ;; esac
 done
-# A port on a VLAN of the switch, such as eth1.1, needs the kernel's VLAN support
+# A port on a VLAN of a switch, such as eth1.1, would need the kernel's VLAN support
 case "$PORTS" in
 	*.*) grep -q '^CONFIG_VLAN_8021Q=y' /test/kernel.config || f="$f kernel-without-vlans" ;;
 esac
