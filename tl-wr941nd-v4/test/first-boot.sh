@@ -67,6 +67,7 @@ uci -q get network.lan.ip6assign > /dev/null && f="$f lan-ipv6"
 uci -q get network.globals.ula_prefix > /dev/null && f="$f ula-prefix"
 [ "$(uci -q get system.@system[0].hostname)" = "$AP_NAME" ] || f="$f hostname"
 [ "$(uci -q get system.@system[0].timezone)" = "$TIMEZONE_RULE" ] || f="$f timezone"
+[ "$(uci -q get system.@system[0].log_size)" = 64 ] || f="$f log-size"
 if [ -s /etc/dropbear/authorized_keys ]; then A=off; else A=on; fi
 [ "$(uci -q get dropbear.main.PasswordAuth)$(uci -q get dropbear.main.RootPasswordAuth)" = "$A$A" ] || f="$f ssh-password-$A"
 [ "$(uci -q get wireless.radio0.country)" = "$WIFI_COUNTRY" ] || f="$f wifi-country"
@@ -81,7 +82,7 @@ if [ -n "$WIFI_KEY" ]; then D=0; else D=1; fi
 ls /etc/rc.d | grep -q "^S[0-9]*zram$" || f="$f zram-not-started"
 echo "--- settings made:"
 uci show network | grep -E '^network\.(lan|@device\[[0-9]\])\.'
-uci show system | grep -E '\.(hostname|zonename|timezone)='
+uci show system | grep -E '\.(hostname|zonename|timezone|log_size)='
 uci show dropbear | grep -E 'Auth='
 uci show wireless | grep -v '\.key='
 if [ -z "$f" ]; then echo "FIRST BOOT PASS"; else echo "FIRST BOOT FAIL:$f"; fi

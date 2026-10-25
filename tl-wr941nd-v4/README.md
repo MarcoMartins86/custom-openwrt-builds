@@ -14,7 +14,7 @@ What the access point does once flashed:
 | Network | Every port, the WAN port too, and the Wi-Fi are one bridge in the main router's network, which hands out the addresses, so the devices on it show up there like any other. The access point itself is at `192.168.2.2/24`, with `192.168.2.1` as gateway and DNS. No DHCP or DNS server, no firewall, no IPv6 | `99-uci_config` |
 | Wi-Fi | One 2.4 GHz network with WPA2, on the channel the access point finds quietest when it starts | `99-wifi_config` |
 | Access | SSH with keys only | `99-uci_config` |
-| Memory | Swap compressed in memory (zram), up to half the 32 MB, for when it runs short | OpenWrt's `zram-swap` |
+| Memory | Swap compressed in memory (zram), up to half the 32 MB, for when it runs short. Small kernel and system logs, small file system blocks, and the crypto modules nothing uses left unloaded; see [Memory](#memory) | OpenWrt's `zram-swap`, `99-uci_config`, `files/etc/modules.d` |
 
 The scripts are in [files/etc/uci-defaults](files/etc/uci-defaults). OpenWrt runs each of them
 once, on the first boot after a flash, so the image defines the access point's whole
@@ -127,9 +127,10 @@ What got them down, measured on 25.12.6, in KB of 1,024 bytes:
 | Kernel without voltage regulators and bit-banged MDIO, with the small-memory allocator and tables | −24 | |
 | Command-line tools nothing uses, SSH with Ed25519 instead of RSA and without its client, no urngd | | −33 |
 | Added swap compressed in memory (zram), with the kernel's swap support | +16 | +21 |
-| **The image now** | **1,504** | **1,865** |
+| Root file system in blocks of 32 KB instead of 64, for [memory](#memory) | | +81 |
+| **The image now** | **1,503** | **1,946** |
 
-That leaves 215 KB to spare, and 511 KB of flash for the settings, which the image
+That leaves 134 KB to spare, and 447 KB of flash for the settings, which the image
 takes in steps of 64 KB.
 
 Measured and left for later releases, which tend to grow:
@@ -137,14 +138,42 @@ Measured and left for later releases, which tend to grow:
 | Change | Saves | Costs |
 |---|---|---|
 | Kernel without its messages | 75 KB | No kernel log at all, so no driver or Wi-Fi errors in `logread` |
-| Squashfs blocks of 128, 256 or 1,024 KB instead of 64 | 62, 98 or 160 KB | Memory: the kernel keeps a few blocks unpacked |
+| Squashfs blocks of 64, 128 or 256 KB instead of 32 | 81, 143 or 179 KB | 160 KB, 480 KB or 1.1 MB of memory: the kernel keeps about five blocks unpacked |
 | No `iw` | 39 KB | OpenWrt's Wi-Fi setup uses it for the transmit power and antenna settings |
 | No package records under `/lib/apk` | 30 KB | `sysupgrade` reads them to find the settings to keep; `/etc/sysupgrade.conf` would have to list those |
 | Kernel without stack protection | 6 KB | A safeguard against memory corruption |
 | Less flash kept for the settings | up to 192 KB | A patch to the image tool's reserve, and less room for settings |
 
-WPA3 (as WPA2/WPA3 mixed) fits too, with hostapd-basic-mbedtls and an mbedtls cut down to
-what it needs, but with only 26 KB to spare.
+WPA3, as WPA2/WPA3 mixed, would take hostapd-basic-mbedtls and an mbedtls cut down to what
+it needs: 230 KB, which is 96 KB more than is spare.
+
+## Memory
+
+The 32 MB of memory is the tighter limit, so the image spends flash where that saves memory:
+
+| Change | Memory saved | Flash it costs |
+|---|---|---|
+| The kernel keeps its messages in 32 KB instead of 128 KB (`kernel.config`), and with them the index it keeps of them. logd keeps a copy, so 32 KB only has to hold what comes before logd starts | 396 KB | none |
+| The crypto modules nothing on the image uses stay on the flash instead of loading at every boot: those for random numbers, hashes and IPsec, which WPA2 on this radio does not use, and the compression ones zram does without. `files/etc/modules.d` holds empty lists in place of OpenWrt's; the kernel still loads one when something asks for it | about 144 KB | none |
+| The root file system in blocks of 32 KB instead of 64 (`openwrt.config`). The kernel keeps about five blocks unpacked | 160 KB | 81 KB |
+| The system log keeps 64 KB instead of 128 KB (`99-uci_config`) | up to 64 KB | none |
+| The kernel's small-memory allocator and tables (`kernel.config`) | not measured | none |
+| Swap compressed in memory (zram) | what it compresses, when memory runs short | 37 KB |
+
+With everything running, hostapd included, about 11.5 MB is left. That is the Malta test's
+estimate of about 12.5 MB, less the Wi-Fi driver's receive buffers, about 0.6 to 1 MB, which
+it only allocates for a radio. The daemons themselves hold little of their own: netifd
+500 KB, hostapd 400 KB, procd 170 KB, logd 120 KB, and less than 100 KB each for the rest.
+The kernel takes most of what is used.
+
+Measured and left for later:
+
+| Change | Saves | Costs |
+|---|---|---|
+| Wi-Fi transmit queues capped at 1 MB instead of 4 MB, with `iw phy … set txq memory_limit` at every boot | up to 3 MB, under heavy traffic | Little: 1 MB is still about 80 ms of traffic at the radio's full speed |
+| Wi-Fi driver with 128 receive buffers instead of 256, by a patch | 0.3 to 0.5 MB | Frames lost at the radio's full speed |
+| Kernel without its messages | its code and the 32 KB | No kernel log at all |
+| No ntpd, or no login prompt on the serial port | 52 or 44 KB | A clock that is wrong in the logs, or no login with a serial adapter |
 
 ## Test
 
@@ -235,7 +264,7 @@ new release.
 - **No package manager**: everything comes with a new image.
 - **The system log** is only kept in memory, and read with `logread`.
 - **Memory**: 32 MB is tight. The access point runs no more than the kernel, procd, netifd,
-  hostapd, dropbear and logd, which leave about 12 MB free by the Malta test's estimate.
+  hostapd, dropbear and logd, which leave about 11.5 MB free; see [Memory](#memory).
   When it runs short, the kernel swaps to zram, which compresses what it swaps out and
   keeps it in memory; `free` and `cat /proc/swaps` show how much is in use. It only delays
   running out: if zram fills up too, the kernel ends processes, and procd starts them again.

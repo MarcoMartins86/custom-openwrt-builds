@@ -53,14 +53,14 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "${WORK}"' EXIT
 LOG="$Q/malta-serial.log"
 
-# The image's root file system, with the Malta kernel's modules in place of the device's
+# The image's root file system, with the Malta kernel's modules in place of the device's.
+# Which of them load at boot stays the image's choice.
 cp -a "${ROOT}" "${WORK}/root"
-rm -f "${WORK}/root"/lib/modules/*/*.ko "${WORK}/root"/etc/modules.d/* "${WORK}/root"/etc/modules-boot.d/*
+rm -f "${WORK}/root"/lib/modules/*/*.ko
 for pkg in ${KMODS}; do
 	mkdir "${WORK}/${pkg}"
 	"${HOST}/apk" extract --allow-untrusted --destination "${WORK}/${pkg}" "${DL}/${pkg}.apk" > /dev/null
 	cp "${WORK}/${pkg}"/lib/modules/*/*.ko "${WORK}/root"/lib/modules/*/ 2> /dev/null
-	cp "${WORK}/${pkg}"/etc/modules.d/* "${WORK}/root/etc/modules.d/" 2> /dev/null
 done
 # Once the services have settled, the report goes to the console and the VM ends
 cat > "${WORK}/root/etc/init.d/zz_report" << 'EOF'
@@ -76,15 +76,20 @@ start() {
 				/etc/init.d/$s running && echo "--- service $s running" || echo "--- service $s stopped"
 			done
 			echo "--- modules loaded: $(lsmod | tail -n +2 | wc -l)"
+			echo "--- modules: $(lsmod | tail -n +2 | cut -d' ' -f1 | xargs)"
 			echo "--- swaps"
 			cat /proc/swaps
 			echo "--- meminfo"
 			grep -E '^(MemTotal|MemFree|MemAvailable|Buffers|Cached|Shmem|Slab|SUnreclaim|SwapTotal|SwapFree):' /proc/meminfo
-			echo "--- processes, resident KB"
+			# A process's own memory (RssAnon) is what ending it gives back; the rest of
+			# what it has resident is program code it shares
+			echo "--- processes, own and resident KB"
 			for d in /proc/[0-9]*; do
 				r="$(sed -n 's/^VmRSS:[[:space:]]*\([0-9]*\).*/\1/p' $d/status 2> /dev/null)"
-				[ -n "$r" ] && echo "$r $(cat $d/comm)"
-			done | grep -v -E ' (S99zz_report|sort|sed|cat|sleep|grep)$' | sort -rn
+				[ -n "$r" ] || continue
+				a="$(sed -n 's/^RssAnon:[[:space:]]*\([0-9]*\).*/\1/p' $d/status)"
+				echo "$a $r $(tr '\0' ' ' < $d/cmdline | cut -c1-60)"
+			done | grep -v -E ' (/etc/rc.d/S99zz_report|sort|sed|cat|sleep|grep|awk|cut|tr)( |$)' | sort -rn
 			# Fill /tmp, which is memory, with the image's own programs, about as
 			# compressible as what a process would swap out, a megabyte at a time until
 			# 2 MB went to zram or less than 1 MB is left
@@ -140,6 +145,12 @@ for s in $(echo "${REPORT}" | sed -n 's/^--- service \(.*\) stopped$/\1/p'); do
 	f="${f} ${s}-not-running"
 done
 echo "${REPORT}" | grep -q '^/dev/zram0 ' || f="${f} no-zram"
+# Crypto modules nothing on the image uses, which it leaves on the flash (files/etc/modules.d)
+for m in $(echo "${REPORT}" | sed -n 's/^--- modules: //p'); do
+	case " cmac crypto_acompress drbg geniv hmac jitterentropy_rng lzo lzo_rle rng seqiv sha3_generic sha512_generic " in
+		*" ${m} "*) f="${f} module-${m}-loaded" ;;
+	esac
+done
 # A script that calls a command the image left out
 MISSING="$(echo "${REPORT}" | sed -n '/^--- log$/,$p' | grep -E ': not found$|applet not found')"
 MODULES="$(echo "${REPORT}" | sed -n '/^--- log$/,$p' | grep -E 'kmodloader: .*(fail|missing|could not)')"
@@ -161,9 +172,9 @@ DEVICE_KERNEL="$(static "${VMLINUX}")"
 AVAILABLE="$(kb MemAvailable)"
 echo "--- memory on Malta, KB"
 echo "${REPORT}" | sed -n '/^--- meminfo$/,/^--- processes/p' | sed '1d;$d'
-echo "--- largest processes, resident KB"
-echo "${REPORT}" | sed -n '/^--- processes/,/^--- pressure/p' | sed '1d;$d' | head -n 10
-echo "$(echo "${REPORT}" | sed -n 's/^--- modules loaded: //p') kernel modules loaded"
+echo "--- largest processes, own and resident KB"
+echo "${REPORT}" | sed -n '/^--- processes/,/^--- pressure/p' | sed '1d;$d' | head -n 14
+echo "$(echo "${REPORT}" | sed -n 's/^--- modules loaded: //p') kernel modules loaded: $(echo "${REPORT}" | sed -n 's/^--- modules: //p')"
 echo "--- kernels, KB: Malta ${MALTA_KERNEL}, the device ${DEVICE_KERNEL}"
 echo "Available on the device, estimated: $((AVAILABLE + MALTA_KERNEL - DEVICE_KERNEL)) KB"
 echo "--- under pressure: $(echo "${REPORT}" | sed -n 's/^--- pressure: //p') to /tmp"

@@ -25,6 +25,11 @@ set system.@system[0].zonename='${TIMEZONE}'
 set system.@system[0].timezone='${TIMEZONE_RULE}'
 commit system
 EOI
+# The system log keeps 64 KB in memory instead of 128
+uci -q batch << EOI
+set system.@system[0].log_size='64'
+commit system
+EOI
 # With a key to log in with, SSH takes nothing else
 if [ -s /etc/dropbear/authorized_keys ]; then
 	uci -q batch << EOI
