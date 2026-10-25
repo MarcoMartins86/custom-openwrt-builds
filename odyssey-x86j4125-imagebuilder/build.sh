@@ -50,6 +50,11 @@ case " ${IMAGE_KINDS} " in
 	*" efi "*|*" bios "*) ;;
 	*) echo "IMAGE_KINDS names no boot method: efi or bios" >&2; exit 1 ;;
 esac
+# WPA2 takes a password of 8 to 63 characters
+if [ -n "${WIFI_KEY}" ] && { [ "${#WIFI_KEY}" -lt 8 ] || [ "${#WIFI_KEY}" -gt 63 ]; }; then
+	echo "WIFI_KEY has to be 8 to 63 characters" >&2
+	exit 1
+fi
 # Dynamic DNS is all or nothing
 if [ -n "${DDNS_PROVIDER}${DDNS_HOST}${DDNS_TOKEN}" ]; then
 	for name in DDNS_PROVIDER DDNS_HOST DDNS_TOKEN; do
@@ -168,6 +173,11 @@ write_env ${SETTINGS} > "${FILES}/etc/build.env"
 if [ -n "${DDNS_PROVIDER}" ]; then
 	write_env DDNS_PROVIDER DDNS_HOST DDNS_USER DDNS_TOKEN > "${FILES}/etc/ddns.env"
 	chmod 600 "${FILES}/etc/ddns.env"
+fi
+# So is the Wi-Fi password, which the first boot keeps in /etc/odyssey/wifi.key
+if [ -n "${WIFI_KEY}" ]; then
+	write_env WIFI_KEY > "${FILES}/etc/wifi.env"
+	chmod 600 "${FILES}/etc/wifi.env"
 fi
 
 # Packages from outside OpenWrt's feeds go into the folder the ImageBuilder

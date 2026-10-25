@@ -27,6 +27,7 @@ python3 "$Q/ser.py" wait 300 'Linux version' 'Please press Enter to activate thi
 OUT="$(python3 "$Q/ser.py" sh 180 \
 	'dmesg -n 1; i=0; while [ $i -lt 30 ] && ! /etc/init.d/uhttpd running; do sleep 2; i=$((i+1)); done; f=""' \
 	'[ -z "$(ls /etc/uci-defaults)" ] || f="$f first-boot-scripts-left"' \
+	'[ ! -e /etc/wifi.env ] && [ -s /etc/odyssey/wifi.key ] || f="$f wifi-password"' \
 	'grep -q " /mnt/data " /proc/mounts || f="$f data-partition-not-mounted"' \
 	'[ "$(lsblk -n -o LABEL /dev/sda3)" = data ] || f="$f data-partition-label"' \
 	'[ -z "'"${GUEST_SHARE}"'" ] || [ -d /mnt/data/share ] || f="$f share-folder"' \

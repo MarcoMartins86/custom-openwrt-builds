@@ -74,6 +74,9 @@ container, `build.sh` builds it from its source once and keeps it in `dl/`.
 `.env` holds every choice with a default. To change one, put it into `private/.env`, which
 is read after `.env` and is not in the repo; this keeps your own values out of a public
 fork. The build writes the settings into the image, where the first-boot scripts read them.
+Both files are read by the shell, so put a password or token in single quotes
+(`WIFI_KEY='…'`): unquoted, the shell acts on characters such as `&`, `;` and spaces, and
+inside double quotes still on `$`, `\` and backticks.
 
 | Setting | Default | What it sets |
 |---|---|---|
@@ -113,6 +116,7 @@ Private settings, which only make sense in `private/.env`:
 |---|---|
 | `DDNS_PROVIDER`, `DDNS_HOST`, `DDNS_TOKEN` | Dynamic DNS: the provider (`duckdns.org`, or another of the names in `/usr/share/ddns/default` on the router), the name that follows the home's public address, and its token. Without them dynamic DNS stays off |
 | `DDNS_USER` | Account name, for providers that ask for one next to the token |
+| `WIFI_KEY` | Password of the Wi-Fi network, 8 to 63 characters, which every flash brings back. Without it the first boot makes one up, which flashes keep |
 | `KEY`, `KNOWN_HOSTS` | For `flash.sh`: the SSH private key to log in with, and the file holding the router's host key |
 | `ROUTER`, `PORT` | For `flash.sh`: where to reach the router, if not at the address in `LAN_ADDRESS` on port 22 |
 
@@ -311,7 +315,8 @@ the root partition grow later without moving the data.
 
 - **Wi-Fi** is off. The built-in Intel card only works as an access point on 2.4 GHz. To
   switch it on: `uci set wireless.default_radio0.disabled=0; uci commit wireless; wifi up`.
-  Its password is in LuCI and in `/etc/odyssey/wifi.key`.
+  Its password is `WIFI_KEY` from `private/.env`, or one the first boot made up; LuCI shows
+  it, and it is in `/etc/odyssey/wifi.key`.
 - **Docker** does not manage firewall rules here. Containers on Docker's default network
   reach the internet; a compose project needs `network_mode: bridge` or `host`, because the
   firewall does not know the networks compose creates. On reboot and poweroff, Docker is
