@@ -51,13 +51,16 @@ jobs:
           restore-keys: tl-wr941nd-v3-dl-${{ steps.release.outputs.version }}-
 
       - name: Build
-        # The SDK container runs as user 1000, the runner as someone else. The runner's
-        # disk is too small for a whole build that keeps every package's build files.
+        # The SDK container runs as user 1000, the runner as someone else, so the container
+        # clones the source into openwrt/ itself: git refuses to work in a folder another
+        # user owns. The runner's disk is too small for a whole build that keeps every
+        # package's build files.
         env:
           AUTOREMOVE: 1
         run: |
-          mkdir -p binaries dl openwrt
-          chmod -R a+rwX binaries dl openwrt
+          mkdir -p binaries dl
+          chmod -R a+rwX binaries dl
+          chmod a+rwx .
           docker compose run --rm builder
 
       # The container built as user 1000, and some of the image's files are only readable
