@@ -123,10 +123,10 @@ ln -s ../init.d/zz_report "${WORK}/root/etc/rc.d/S99zz_report"
 STAGING_DIR_HOST="${HOST%/bin}" PATH="${HOST}:${PATH}" "${HOST}/fakeroot" -- sh -c \
 	'chown -R 0:0 "$1/root" && mkfs.ext4 -q -F -L rootfs -d "$1/root" "$1/disk.img" 64M' - "${WORK}" || exit 1
 
-# The network card goes without its boot ROM, which the VM does not use, and which QEMU's
-# packages only bring as a recommendation
+# No graphics card, and a network card without its boot ROM: the VM uses neither, and QEMU's
+# packages only bring their ROMs as a recommendation
 echo "Booting on QEMU's Malta board with 32 MB; the report comes after about two minutes"
-timeout 600 qemu-system-mips -M malta -cpu 24Kc -m 32M -display none -monitor none -no-reboot \
+timeout 600 qemu-system-mips -M malta -cpu 24Kc -m 32M -display none -vga none -monitor none -no-reboot \
 	-serial "file:${LOG}" -kernel "${KERNEL}" -netdev user,id=lan -device pcnet,netdev=lan,romfile= \
 	-drive "file=${WORK}/disk.img,format=raw,if=ide" \
 	-append "root=/dev/sda rootfstype=ext4 rootwait console=ttyS0 panic=-1"

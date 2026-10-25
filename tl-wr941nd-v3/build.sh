@@ -83,6 +83,11 @@ for patch in "${HERE}"/patches/*.patch; do
 	git -C "${SRC}" apply "${patch}"
 done
 cat "${HERE}/kernel.config" >> "${SRC}/target/linux/ath79/tiny/config-default"
+# Fixes for the kernel join OpenWrt's own pending kernel patches. The copies from an earlier
+# build are the only files there that are not OpenWrt's, and go first.
+PENDING="${SRC}/target/linux/generic/pending-$(sed -n 's/^KERNEL_PATCHVER:=//p' "${SRC}/target/linux/ath79/Makefile")"
+git -C "${SRC}" clean -fq -- "${PENDING}"
+cp "${HERE}"/kernel-patches/*.patch "${PENDING}/"
 
 # Every package comes from OpenWrt's own tree, so the package feeds are left out
 mkdir -p "${HERE}/dl"

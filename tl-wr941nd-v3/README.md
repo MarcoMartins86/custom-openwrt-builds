@@ -37,6 +37,7 @@ The inputs are all in this folder:
 | `openwrt.config` | OpenWrt's build configuration, as far as it differs from the device's defaults: the packages left out, and the options of the kernel, Wi-Fi, SSH and command-line tools |
 | `kernel.config` | Kernel options on top of those OpenWrt builds the device's kernel with |
 | `patches/` | Changes to OpenWrt's source: IPv6 made optional again |
+| `kernel-patches/` | Fixes for the kernel, added to OpenWrt's own: without the phylink one, 25.12.6 sets up none of the switch's ports |
 | `files/` | Files copied into the image, mainly the first-boot scripts |
 | `private/files/` | The same, for files that should not be public, such as the SSH keys allowed in. Not in the repo |
 
@@ -48,7 +49,7 @@ docker compose run --rm builder
 
 `build.sh` runs in OpenWrt's SDK container for the release, which brings every tool OpenWrt's
 build needs. It checks out OpenWrt's source at the release's tag into `openwrt/`, applies
-`patches/` and `kernel.config`, configures the build from `openwrt.config`, and builds
+`patches/`, `kernel-patches/` and `kernel.config`, configures the build from `openwrt.config`, and builds
 everything, the toolchain first. The first build takes about 15 minutes on 20 cores and
 fills about 10 GB; later ones only redo what changed. The source archives stay in `dl/`.
 Both folders can be deleted at any time.
@@ -268,6 +269,14 @@ new release.
 
 ## Good to know
 
+- **25.12.6 and the switch**: one of OpenWrt's own kernel patches in 25.12.6, "net: phylink:
+  introduce internal phylink PCS handling", makes phylink fail every port of a switch whose
+  driver has no PCS support, as this one's: the ports never appear, so neither cable nor
+  failsafe reaches the access point. 25.12.5 does not have that patch.
+  `kernel-patches/737-08-…` restores the check phylink had before; QEMU's Malta board with
+  the kernel's test switch, which takes the same path, shows the ports failing without it
+  and coming up with it. The same patch breaks Marvell's 88E6171
+  ([openwrt#26029](https://github.com/openwrt/openwrt/issues/26029)).
 - **No LuCI**: there is no room for it. Settings are changed over SSH with `uci`, and are
   lost with the next flash unless they go into the image.
 - **No package manager**: everything comes with a new image.
