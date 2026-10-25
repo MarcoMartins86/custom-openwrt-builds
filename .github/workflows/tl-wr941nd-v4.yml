@@ -1,0 +1,71 @@
+# Builds the TL-WR941ND v4 image from OpenWrt's source with the public settings in .env,
+# and runs its first boot's scripts for test/first-boot.sh, on every pull request and every
+# change to main that touches the build. It uses no secrets: the image to flash, with the
+# settings in private/.env, is built on your own machine.
+name: TL-WR941ND v4
+
+on:
+  pull_request:
+    paths:
+      - "tl-wr941nd-v4/**"
+      - ".github/workflows/tl-wr941nd-v4.yml"
+  push:
+    branches: [main]
+    paths:
+      - "tl-wr941nd-v4/**"
+      - ".github/workflows/tl-wr941nd-v4.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-26.04
+    # Everything is compiled, the toolchain first, on the runner's four cores
+    timeout-minutes: 180
+    defaults:
+      run:
+        working-directory: tl-wr941nd-v4
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read the release
+        id: release
+        run: echo "version=$(sed -n 's/^OPENWRT_VERSION=//p' .env)" >> "$GITHUB_OUTPUT"
+
+      # The source archives an earlier run downloaded for the same release. The build
+      # checks each against the checksum in OpenWrt's source. GitHub drops a cache that
+      # has not been used for a week.
+      - name: Restore the source downloads
+        uses: actions/cache@v6
+        with:
+          path: tl-wr941nd-v4/dl
+          key: tl-wr941nd-v4-dl-${{ steps.release.outputs.version }}-${{ hashFiles('tl-wr941nd-v4/openwrt.config') }}
+          restore-keys: tl-wr941nd-v4-dl-${{ steps.release.outputs.version }}-
+
+      - name: Build
+        # The SDK container runs as user 1000, the runner as someone else. The runner's
+        # disk is too small for a whole build that keeps every package's build files.
+        env:
+          AUTOREMOVE: 1
+        run: |
+          mkdir -p binaries dl openwrt
+          chmod -R a+rwX binaries dl openwrt
+          docker compose run --rm builder
+
+      - name: First-boot test
+        run: sh test/first-boot.sh
+
+      # The package list, to see what an update changed
+      - name: Keep the manifest
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tl-wr941nd-v4-manifest
+          path: tl-wr941nd-v4/binaries/*.manifest
+          if-no-files-found: ignore

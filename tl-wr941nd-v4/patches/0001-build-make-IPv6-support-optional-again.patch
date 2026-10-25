@@ -1,0 +1,23 @@
+build: make IPv6 support optional again
+
+Lets an image for a small device leave IPv6 out of the kernel and the packages.
+On ath79/tiny that takes 334 KB of code out of the kernel.
+
+Brings back the prompt that 832e7b8172 ("build: always set CONFIG_IPV6") removed
+because some packages fail to build without IPv6. Every package of this image
+builds without it.
+
+diff --git a/config/Config-build.in b/config/Config-build.in
+index b42fb8bc11..c8760f0cb2 100644
+--- a/config/Config-build.in
++++ b/config/Config-build.in
+@@ -188,7 +188,8 @@ menu "Global build settings"
+ 		  Packages can opt-out via setting PKG_BUILD_FLAGS:=no-mold
+ 
+ 	config IPV6
+-		def_bool y
++		bool "Enable IPv6 support in packages"
++		default y
+ 
+ 	comment "Stripping options"
+ 
