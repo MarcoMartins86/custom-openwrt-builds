@@ -79,6 +79,9 @@ run `./build.sh`.
 `.env` holds every choice with a default. To change one, put it into `private/.env`, which
 is read after `.env` and is not in the repo; this keeps your own values out of a public
 fork. The build writes the settings into the image, where the first-boot scripts read them.
+Both files are read by the shell, so put the Wi-Fi password in single quotes
+(`WIFI_KEY='…'`): unquoted, the shell acts on characters such as `&`, `;` and spaces, and
+inside double quotes still on `$`, `\` and backticks.
 
 | Setting | Default | What it sets |
 |---|---|---|
