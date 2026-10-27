@@ -49,6 +49,11 @@ miniupnpd-nftables luci-app-upnp luci-app-bcp38 luci-app-wifischedule
 kmod-tun kmod-gre6 umdns
 ip-tiny ethtool-full curl dnslookup dnstap
 watchcat luci-app-watchcat             # restarts the WAN without internet, see 99-watchcat_config
+mwan3 luci-app-mwan3                    # fails the network over to a tethered phone, see 99-mwan3_config
+# A phone as backup WAN over USB: Android tethers as RNDIS or CDC; an iPhone needs ipheth and
+# usbmuxd, which pairs it after a one-time "Trust"
+kmod-usb-net-rndis kmod-usb-net-cdc-ether kmod-usb-net-cdc-ncm
+kmod-usb-net-ipheth usbmuxd libimobiledevice-utils
 
 # --- Containers and file sharing
 luci-app-dockerman                     # brings dockerd, docker and docker-compose

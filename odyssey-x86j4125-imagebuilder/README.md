@@ -10,6 +10,7 @@ What the router does once flashed:
 | Area | Setup | Configured in |
 |---|---|---|
 | Network | LAN `192.168.2.1/24` on the first port, WAN by DHCP on the second, IPv6 off. The WAN is restarted after 10 minutes without internet | `99-uci_config`, `99-watchcat_config` |
+| Backup internet | When the ISP WAN stops answering, mwan3 fails the whole network over to a phone tethered over USB, and back when it returns | `99-mwan3_config` |
 | DNS and DHCP | unbound with DNSSEC, odhcpd, local names under `.lan` | `99-unbound_config` |
 | Ad blocking | adblock on unbound, lists refreshed every night, DNS forced through the router, DNS over TLS to outside cut off, DNS report for every network | `99-adblock_config` |
 | Firewall | OpenWrt's firewall plus banIP blocklists, refreshed every night | `99-banip_config` |
@@ -89,6 +90,7 @@ inside double quotes still on `$`, `\` and backticks.
 | `IPV6` | `0` | `1` keeps OpenWrt's IPv6 on the WAN and the LAN; `0` switches it off, for a connection without IPv6 |
 | `TIMEZONE` | `Europe/Lisbon` | Time zone, by the name LuCI lists |
 | `WAN_DNS_CLIENTS` | empty | Network on the WAN side whose devices may use the router's DNS; empty keeps DNS closed there |
+| `BACKUP_WAN` | `1` | `1` fails the network over to a USB-tethered phone when the ISP WAN is down (mwan3); `0` keeps the backup interface but not the automatic failover |
 | `WIFI_SSID` | `odyssey-admin` | Name of the Wi-Fi network that is kept switched off |
 | `VPN_PORT` | `51820` | UDP port of the WireGuard server |
 | `VPN_ADDRESS` | `10.8.0.1/24` | The server's address in the range VPN devices get |
@@ -125,6 +127,29 @@ Private settings, which only make sense in `private/.env`:
 SSH only accepts keys, so put the public keys allowed to log in as root into
 `private/files/etc/dropbear/authorized_keys` before building. Without it the router can only
 be managed from LuCI.
+
+## Backup internet
+
+When the ISP connection drops, the router can fall back to a phone's mobile data, tethered
+over a USB cable, so the whole network stays online without touching each device. It is set
+up in [files/etc/uci-defaults/99-mwan3_config](files/etc/uci-defaults/99-mwan3_config) and
+turned on by `BACKUP_WAN` (see [Settings](#settings)).
+
+- **The phone** comes up as the `wwan` interface on `usb0`, in the WAN firewall zone. An
+  Android phone: plug it in and turn on **USB tethering** in its settings. An iPhone: turn on
+  **Personal Hotspot**, plug it in, and tap **Trust** the first time; `usbmuxd` pairs it.
+  Images carry the drivers for both (RNDIS/CDC and `ipheth`).
+- **mwan3** watches both links by pinging `1.1.1.1` and `8.8.8.8` through each. The ISP WAN
+  is preferred; five misses in a row (about 25 seconds, not a single blip) fail the network
+  over to the phone, and three good replies bring it back. This catches an ISP that is down
+  while the WAN cable's link stays up — the case a plain cable-based failover misses, and the
+  one watchcat only restarts the WAN for.
+- **While the ISP is up the phone is a standby** and carries no traffic. On failover the
+  whole network uses the phone's data, so watch a metered plan; `BACKUP_WAN=0` keeps the
+  interface ready but leaves the switch-over to be done by hand in LuCI (Network → Load
+  Balancing).
+- **Check it** with `mwan3 status` and `mwan3 interfaces` over SSH. To test, pull the WAN
+  cable with the phone tethered: the network should keep working within half a minute.
 
 ## VPN
 
