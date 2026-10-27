@@ -1,0 +1,83 @@
+# https://openwrt.org/docs/guide-user/network/wan/multiwan/mwan3
+# Backup internet: when the ISP WAN stops answering, mwan3 fails the whole network over to a
+# phone tethered over USB, and back when the ISP returns. BACKUP_WAN turns the automatic
+# failover on or off; the backup interface and its firewall zone are set up either way, so
+# the phone is ready the moment it is plugged in.
+. /etc/build.env
+
+# The tethered phone comes up as usb0, handing out an address by DHCP: an Android phone when
+# "USB tethering" is turned on (RNDIS or CDC), an iPhone after a one-time "Trust" with
+# Personal Hotspot on (usbmuxd does the pairing). The interface sits in the WAN firewall
+# zone, so it is masqueraded like the main WAN; a higher metric keeps it behind the ISP WAN
+# while both are up.
+uci -q batch << EOI
+set network.wwan=interface
+set network.wwan.proto='dhcp'
+set network.wwan.device='usb0'
+set network.wwan.metric='20'
+commit network
+EOI
+WAN_ZONE="$(uci show firewall | sed -n "s/^\(firewall\.[^.]*\)\.name='wan'\$/\1/p")"
+if [ -n "${WAN_ZONE}" ] && ! uci -q get "${WAN_ZONE}.network" | grep -qw wwan; then
+	uci -q add_list "${WAN_ZONE}.network=wwan"
+	uci -q commit firewall
+fi
+# usbmuxd pairs an iPhone for tethering; it does nothing with an Android phone
+/etc/init.d/usbmuxd enable 2> /dev/null
+
+# mwan3 prefers the ISP WAN (lower metric) and falls over to the phone. It pings 1.1.1.1 and
+# 8.8.8.8 through each link; five misses in a row mark the ISP down (not one blip), three
+# bring it back. last_resort "default" means that if mwan3 can track neither link it leaves
+# routing alone rather than cutting it off. Replaces the package's own example sections.
+while uci -q delete mwan3.@interface[0]; do :; done
+while uci -q delete mwan3.@member[0]; do :; done
+while uci -q delete mwan3.@policy[0]; do :; done
+while uci -q delete mwan3.@rule[0]; do :; done
+uci -q batch << EOI
+set mwan3.globals=globals
+set mwan3.wan=interface
+set mwan3.wan.enabled='1'
+set mwan3.wan.family='ipv4'
+set mwan3.wan.track_method='ping'
+add_list mwan3.wan.track_ip='1.1.1.1'
+add_list mwan3.wan.track_ip='8.8.8.8'
+set mwan3.wan.reliability='1'
+set mwan3.wan.count='1'
+set mwan3.wan.timeout='2'
+set mwan3.wan.interval='5'
+set mwan3.wan.down='5'
+set mwan3.wan.up='5'
+set mwan3.wwan=interface
+set mwan3.wwan.enabled='1'
+set mwan3.wwan.family='ipv4'
+set mwan3.wwan.track_method='ping'
+add_list mwan3.wwan.track_ip='1.1.1.1'
+add_list mwan3.wwan.track_ip='8.8.8.8'
+set mwan3.wwan.reliability='1'
+set mwan3.wwan.count='1'
+set mwan3.wwan.timeout='2'
+set mwan3.wwan.interval='5'
+set mwan3.wwan.down='3'
+set mwan3.wwan.up='3'
+set mwan3.wan_only=member
+set mwan3.wan_only.interface='wan'
+set mwan3.wan_only.metric='1'
+set mwan3.phone_backup=member
+set mwan3.phone_backup.interface='wwan'
+set mwan3.phone_backup.metric='2'
+set mwan3.wan_failover=policy
+add_list mwan3.wan_failover.use_member='wan_only'
+add_list mwan3.wan_failover.use_member='phone_backup'
+set mwan3.wan_failover.last_resort='default'
+set mwan3.default_rule=rule
+set mwan3.default_rule.dest_ip='0.0.0.0/0'
+set mwan3.default_rule.family='ipv4'
+set mwan3.default_rule.use_policy='wan_failover'
+commit mwan3
+EOI
+
+if [ "${BACKUP_WAN}" = 1 ]; then
+	/etc/init.d/mwan3 enable 2> /dev/null
+else
+	/etc/init.d/mwan3 disable 2> /dev/null
+fi
