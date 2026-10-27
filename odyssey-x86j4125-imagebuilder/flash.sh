@@ -12,6 +12,7 @@
 #
 # usage: flash.sh [-y] [image.img.gz]
 #   -y   do not ask before flashing
+#   the image is the one in binaries/ for OPENWRT_VERSION unless named
 # Settings, from private/.env or, taking precedence, from the environment:
 #   ROUTER (the address in LAN_ADDRESS), PORT (22), KEY (an SSH private key),
 #   KNOWN_HOSTS (a file)
@@ -30,13 +31,18 @@ KNOWN_HOSTS="${given_KNOWN_HOSTS:-${KNOWN_HOSTS}}"
 
 YES=""
 [ "$1" = "-y" ] && { YES=1; shift; }
-IMAGE="${1:-$(ls "${HERE}"/binaries/openwrt-*-ext4-combined-efi.img.gz 2>/dev/null | head -1)}"
-[ -f "${IMAGE}" ] || { echo "no image found; build one first or name it" >&2; exit 1; }
+# binaries/ keeps the images of earlier releases too, so pick the one the router is
+# then waited for
+IMAGE="${1:-$(ls "${HERE}"/binaries/openwrt-"${OPENWRT_VERSION}"-*-ext4-combined-efi.img.gz 2>/dev/null | head -1)}"
+[ -f "${IMAGE}" ] || { echo "no ${OPENWRT_VERSION} image found; build one first or name it" >&2; exit 1; }
 
 # Runs a command on the router
 router() {
+	# A keepalive that survives a slow or busy link: the upload can fill one for long
+	# enough that a short timeout drops the session mid-transfer. 60 s still ends the
+	# call promptly if the link dies, and the router takes longer than that to reboot.
 	ssh -p "${PORT}" -o BatchMode=yes -o ConnectTimeout=8 -o StrictHostKeyChecking=accept-new \
-		-o ServerAliveInterval=2 -o ServerAliveCountMax=3 \
+		-o ServerAliveInterval=10 -o ServerAliveCountMax=6 \
 		${KEY:+-i "${KEY}" -o IdentitiesOnly=yes} \
 		${KNOWN_HOSTS:+-o UserKnownHostsFile="${KNOWN_HOSTS}"} \
 		"root@${ROUTER}" "$@"
