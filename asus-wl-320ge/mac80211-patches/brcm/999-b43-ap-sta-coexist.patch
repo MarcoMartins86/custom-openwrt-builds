@@ -1,10 +1,12 @@
 From: Marco Martins
-Subject: [b43 repeater WIP] same-channel AP+STA coexistence (steps 1-2b)
+Subject: [b43] same-channel AP+STA coexistence for a repeater
 
 Track STA and AP vif roles, advertise an {AP}+{STA} single-channel combination,
 accept a second complementary interface, and in that repeater mode receive
 promiscuously so the single hardware BSSID filter does not drop the second BSSID's
-frames (mac80211 sorts them per interface). WIP, not for merge.
+frames (mac80211 sorts them per interface). Validated on a BCM5352 (WL-320gE): an
+access point and a station run together on the one radio. A downstream patch; it
+would want cleanup and review before going upstream.
 ---
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
