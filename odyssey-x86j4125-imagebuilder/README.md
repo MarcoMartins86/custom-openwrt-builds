@@ -143,10 +143,11 @@ turned on by `BACKUP_WAN` (see [Settings](#settings)).
   ([30-phone-tether](files/etc/hotplug.d/net/30-phone-tether)) binds whichever one appears,
   matched by driver so it never touches the real LAN/WAN ports.
 - **mwan3** watches both links by pinging `1.1.1.1` and `8.8.8.8` through each. The ISP WAN
-  is preferred; five misses in a row (about 25 seconds, not a single blip) fail the network
-  over to the phone, and three good replies bring it back. This catches an ISP that is down
+  is preferred; five misses in a row (about 40 seconds, not a single blip) fail the network
+  over to the phone, and five good replies bring it back. This catches an ISP that is down
   while the WAN cable's link stays up — the case a plain cable-based failover misses, and the
-  one watchcat only restarts the WAN for.
+  one watchcat only restarts the WAN for. Each restart brings the WAN up counted as down, so
+  it has to answer before it takes the network back from the phone; a dead ISP never does.
 - **While the ISP is up the phone is a standby** and carries no traffic. On failover the
   whole network uses the phone's data, so watch a metered plan; `BACKUP_WAN=0` keeps the
   interface ready but leaves the switch-over to be done by hand in LuCI (Network → Load

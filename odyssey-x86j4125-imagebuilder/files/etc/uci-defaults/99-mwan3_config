@@ -28,9 +28,13 @@ fi
 /etc/init.d/usbmuxd enable 2> /dev/null
 
 # mwan3 prefers the ISP WAN (lower metric) and falls over to the phone. It pings 1.1.1.1 and
-# 8.8.8.8 through each link; five misses in a row mark the ISP down (not one blip), three
-# bring it back. last_resort "default" means that if mwan3 can track neither link it leaves
-# routing alone rather than cutting it off. Replaces the package's own example sections.
+# 8.8.8.8 through each link; five misses in a row mark the ISP down (not one blip), five
+# replies bring it back (three each way for the phone). Each time the ISP WAN comes up, as
+# when watchcat restarts it during an outage, it starts out down and has to answer first;
+# otherwise mwan3 would trust it at once and send the network into a dead link for the
+# 40 seconds it takes to notice. last_resort "default" means that if mwan3 can track neither
+# link it leaves routing alone rather than cutting it off, so a WAN starting out down at boot
+# still carries the traffic. Replaces the package's own example sections.
 while uci -q delete mwan3.@interface[0]; do :; done
 while uci -q delete mwan3.@member[0]; do :; done
 while uci -q delete mwan3.@policy[0]; do :; done
@@ -49,6 +53,7 @@ set mwan3.wan.timeout='2'
 set mwan3.wan.interval='5'
 set mwan3.wan.down='5'
 set mwan3.wan.up='5'
+set mwan3.wan.initial_state='offline'
 set mwan3.wwan=interface
 set mwan3.wwan.enabled='1'
 set mwan3.wwan.family='ipv4'
