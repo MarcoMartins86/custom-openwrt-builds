@@ -64,6 +64,17 @@ $(for category in ${ADBLOCK_UTCAPITOLE_CATEGORIES}; do echo "add_list adblock.gl
 commit adblock
 EOI
 
+# The Epic Games store's checkout needs two hosts that a privacy feed (divested) blocks: the
+# Talon anti-bot SDK, under on.epicgames.com, and the Statsig feature flags at
+# featureassets.org. Without them the purchase page cannot load its bot check or its flags
+# and the "Buy" button does nothing. Allow both so a purchase goes through; Epic's telemetry
+# hosts (tracking.epicgames.com and the rest) stay blocked. Appended, so the package's own
+# allowlist entries and any added by hand stay.
+ALLOWLIST="/etc/adblock/adblock.allowlist"
+for domain in on.epicgames.com featureassets.org; do
+	grep -qxF "${domain}" "${ALLOWLIST}" 2> /dev/null || echo "${domain}" >> "${ALLOWLIST}"
+done
+
 # Adblock only downloads its lists again when told to reload
 CRON="/etc/crontabs/root"
 [ -f "${CRON}" ] && sed -i '\|/etc/init.d/adblock reload|d' "${CRON}"
