@@ -3,8 +3,8 @@
 # Flashes the built image to a running router over SSH and waits for it to come back.
 #
 # The router keeps its identity across the flash: root password, SSH host keys,
-# HTTPS certificate, the VPN key with the devices allowed to connect, and whatever
-# the first-boot scripts keep under /etc/odyssey.
+# HTTPS certificate, the VPN key with the devices allowed to connect, the pairing
+# with a tethered iPhone, and whatever the first-boot scripts keep under /etc/odyssey.
 # Its configuration is not kept; the first-boot scripts regenerate it. The data
 # partition is left alone. A backup of the whole configuration is saved first, to
 # private/backups/ on this machine.
@@ -71,8 +71,10 @@ if uci -q get network.wg0.private_key > /dev/null; then
 	)
 fi
 KEEP=""
+# usbmuxd keeps the iPhone pairing in /etc/lockdown. Without it the phone has to be
+# trusted again, and a backup WAN that waits for a tap is no backup during an outage.
 for f in etc/odyssey etc/dropbear/dropbear_ed25519_host_key etc/dropbear/dropbear_rsa_host_key \
-	etc/uhttpd.crt etc/uhttpd.key etc/wireguard; do
+	etc/uhttpd.crt etc/uhttpd.key etc/wireguard etc/lockdown; do
 	[ -e "/$f" ] && KEEP="$KEEP $f"
 done
 tar czf /tmp/identity.tar.gz -C / $KEEP

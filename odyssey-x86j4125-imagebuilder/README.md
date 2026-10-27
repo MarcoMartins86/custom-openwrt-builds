@@ -137,7 +137,8 @@ turned on by `BACKUP_WAN` (see [Settings](#settings)).
 
 - **The phone** becomes the `wwan` interface, in the WAN firewall zone. An Android phone:
   plug it in and turn on **USB tethering** in its settings. An iPhone: turn on **Personal
-  Hotspot**, plug it in, and tap **Trust** the first time; `usbmuxd` pairs it. Images carry
+  Hotspot**, plug it in, and tap **Trust** the first time; `usbmuxd` pairs it, and a flash
+  keeps the pairing. Images carry
   the drivers for both (RNDIS/CDC and `ipheth`). The kernel names the tether `usb0` on some
   phones and `eth2` on others (iOS does), so a hotplug script
   ([30-phone-tether](files/etc/hotplug.d/net/30-phone-tether)) binds whichever one appears,
@@ -311,7 +312,7 @@ What a flash keeps and what it replaces:
 
 | | |
 |---|---|
-| Kept | Root password, SSH host keys, HTTPS certificate, the Wi-Fi password, the VPN key and its devices, everything on the data partition |
+| Kept | Root password, SSH host keys, HTTPS certificate, the Wi-Fi password, the VPN key and its devices, the tethered iPhone's pairing, everything on the data partition |
 | Replaced | The whole configuration, which the first-boot scripts write again |
 
 After the flash the router restarts once more by itself, to load the CPU microcode.
