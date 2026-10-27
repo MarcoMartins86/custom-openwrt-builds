@@ -296,7 +296,9 @@ For a router already running this image:
 ./flash.sh
 ```
 
-It uploads the image, checks it, and upgrades the router over SSH. Docker is stopped first,
+It uploads the image built for `OPENWRT_VERSION` (or the one named after it, as in
+`./flash.sh binaries/<file>.img.gz`), checks it, and upgrades the router over SSH. Upload over
+a wired link: the 150 MB image can swamp a slow Wi-Fi hop on the way. Docker is stopped first,
 so that containers shut down cleanly; they start again by themselves after the flash. The
 SSH key and known-hosts file come from `private/.env`, see [Settings](#settings).
 
