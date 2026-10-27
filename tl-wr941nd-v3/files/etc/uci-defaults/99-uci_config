@@ -1,0 +1,40 @@
+# https://openwrt.org/docs/guide-developer/uci-defaults#integrating_custom_settings
+# A bridged access point: every port, the WAN port too, and the Wi-Fi join the main
+# router's network, which hands out the addresses. Its devices show up there like any
+# other. Nothing here routes, filters or hands out addresses.
+. /etc/build.env
+# The bridge OpenWrt makes of the LAN ports takes the WAN port as well
+BRIDGE="$(uci show network | sed -n "s/^\(network\.[^.]*\)\.name='br-lan'$/\1/p")"
+WAN="$(uci -q get network.wan.device)"
+uci -q batch << EOI
+${WAN:+add_list ${BRIDGE}.ports='${WAN}'}
+delete network.wan
+delete network.wan6
+delete network.globals.ula_prefix
+delete network.lan.ip6assign
+set network.lan.proto='static'
+delete network.lan.ipaddr
+delete network.lan.netmask
+add_list network.lan.ipaddr='${LAN_ADDRESS}'
+set network.lan.gateway='${GATEWAY}'
+delete network.lan.dns
+add_list network.lan.dns='${GATEWAY}'
+commit network
+set system.@system[0].hostname='${AP_NAME}'
+set system.@system[0].zonename='${TIMEZONE}'
+set system.@system[0].timezone='${TIMEZONE_RULE}'
+commit system
+EOI
+# The system log keeps 64 KB in memory instead of 128
+uci -q batch << EOI
+set system.@system[0].log_size='64'
+commit system
+EOI
+# With a key to log in with, SSH takes nothing else
+if [ -s /etc/dropbear/authorized_keys ]; then
+	uci -q batch << EOI
+set dropbear.main.PasswordAuth='off'
+set dropbear.main.RootPasswordAuth='off'
+commit dropbear
+EOI
+fi

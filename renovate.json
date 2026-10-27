@@ -23,6 +23,23 @@
     },
     {
       "customType": "regex",
+      "description": "The OpenWrt release of the TL-WR941ND v3 build, in its .env and README. It names the SDK container the build runs in, so a release only counts once its container is published.",
+      "managerFilePatterns": [
+        "/^tl-wr941nd-v3/\\.env$/",
+        "/^tl-wr941nd-v3/README\\.md$/"
+      ],
+      "matchStrings": [
+        "OPENWRT_VERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)",
+        "\\| `OPENWRT_VERSION` \\| `(?<currentValue>\\d+\\.\\d+\\.\\d+)` \\|"
+      ],
+      "depNameTemplate": "openwrt-tl-wr941nd-v3",
+      "packageNameTemplate": "ghcr.io/openwrt/sdk",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^ath79-tiny-v(?<version>\\d+\\.\\d+\\.\\d+)$"
+    },
+    {
+      "customType": "regex",
       "description": "Packages downloaded from GitHub releases in extra-packages.txt",
       "managerFilePatterns": [
         "/^odyssey-x86j4125-imagebuilder/extra-packages\\.txt$/"
