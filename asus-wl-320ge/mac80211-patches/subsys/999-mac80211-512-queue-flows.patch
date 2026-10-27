@@ -1,0 +1,18 @@
+From: Marco Martins
+Subject: mac80211: 512 queue flows instead of 4096
+
+For a 16 MB access point with a handful of clients: the flow table and its
+CoDel state take 64 bytes per flow, 256 KB at 4096 flows and 32 KB at 512.
+Fewer flows only means unrelated traffic shares a queue more often.
+---
+--- a/net/mac80211/tx.c
++++ b/net/mac80211/tx.c
+@@ -1581,7 +1581,7 @@
+ 	bool supp_vht = false;
+ 	enum nl80211_band band;
+ 
+-	ret = fq_init(fq, 4096);
++	ret = fq_init(fq, 512);
+ 	if (ret)
+ 		return ret;
+ 

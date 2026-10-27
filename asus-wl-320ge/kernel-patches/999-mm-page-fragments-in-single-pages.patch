@@ -1,0 +1,17 @@
+From: Marco Martins
+Subject: mm: page fragment caches in single pages
+
+For a 16 MB device: each cache holds a 32 KB block, several of them for the
+network stack. With single pages they refill more often under heavy traffic.
+---
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -566,7 +566,7 @@
+  */
+ #define STRUCT_PAGE_MAX_SHIFT	(order_base_2(sizeof(struct page)))
+ 
+-#define PAGE_FRAG_CACHE_MAX_SIZE	__ALIGN_MASK(32768, ~PAGE_MASK)
++#define PAGE_FRAG_CACHE_MAX_SIZE	PAGE_SIZE
+ #define PAGE_FRAG_CACHE_MAX_ORDER	get_order(PAGE_FRAG_CACHE_MAX_SIZE)
+ 
+ /*

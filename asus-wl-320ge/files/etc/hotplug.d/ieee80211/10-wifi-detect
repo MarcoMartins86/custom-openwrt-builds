@@ -1,0 +1,2 @@
+# Not used: the access point comes from /etc/init.d/ap, not from a generated Wi-Fi
+# configuration. Replaces wifi-scripts' version.

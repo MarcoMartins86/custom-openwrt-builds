@@ -1,0 +1,17 @@
+From: Marco Martins
+Subject: b43: 128 transmit ring slots instead of 256
+
+Halves the transmit header cache, for a 16 MB device. 64 frames per queue
+still cover over 30 ms of airtime at 802.11g rates.
+---
+--- a/drivers/net/wireless/broadcom/b43/dma.h
++++ b/drivers/net/wireless/broadcom/b43/dma.h
+@@ -169,7 +169,7 @@
+ #define B43_DMA0_RX_FW351_FO		30
+ 
+ /* DMA engine tuning knobs */
+-#define B43_TXRING_SLOTS		256
++#define B43_TXRING_SLOTS		128
+ #define B43_RXRING_SLOTS		32
+ #define B43_DMA0_RX_FW598_BUFSIZE	(B43_DMA0_RX_FW598_FO + IEEE80211_MAX_FRAME_LEN)
+ #define B43_DMA0_RX_FW351_BUFSIZE	(B43_DMA0_RX_FW351_FO + IEEE80211_MAX_FRAME_LEN)

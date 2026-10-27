@@ -1,0 +1,17 @@
+From: Marco Martins
+Subject: squashfs: four cached metadata blocks instead of eight
+
+For a 16 MB device: the metadata cache holds 8 KB blocks; four leave 32 KB
+more memory for slightly more reads when looking up files.
+---
+--- a/fs/squashfs/squashfs_fs.h
++++ b/fs/squashfs/squashfs_fs.h
+@@ -202,7 +202,7 @@
+ #define SQUASHFS_XATTR_OFFSET(A)	((unsigned int) ((A) & 0xffff))
+ 
+ /* cached data constants for filesystem */
+-#define SQUASHFS_CACHED_BLKS		8
++#define SQUASHFS_CACHED_BLKS		4
+ 
+ /* meta index cache */
+ #define SQUASHFS_META_INDEXES	(SQUASHFS_METADATA_SIZE / sizeof(unsigned int))

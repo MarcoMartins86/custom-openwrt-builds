@@ -1,0 +1,40 @@
+From: Marco Martins
+Subject: hostapd: build without ucode
+
+For an access point whose Wi-Fi comes from a configuration file fixed at build
+time, with hostapd started on its own: ucode is how OpenWrt's Wi-Fi scripts drive
+hostapd, and holds about 300 KB of memory in it. Leaves out the access point
+uplink (APUP) those scripts use as well, and the ucode library the package links
+in any case.
+---
+diff --git a/package/network/services/hostapd/Makefile b/package/network/services/hostapd/Makefile
+index 8152497feb..c623188f8e 100644
+--- a/package/network/services/hostapd/Makefile
++++ b/package/network/services/hostapd/Makefile
+@@ -89,8 +89,7 @@ ifneq ($(LOCAL_VARIANT),mini)
+ endif
+ 
+ 
+-CORE_DEPENDS = +ucode +libucode \
+-	+ucode-mod-fs +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uloop \
++CORE_DEPENDS = \
+ 	+libubus +libblobmsg-json \
+ 	+libudebug
+ OPENSSL_DEPENDS = +PACKAGE_$(1):libopenssl +PACKAGE_$(1):libopenssl-legacy
+@@ -101,7 +100,6 @@ DRIVER_MAKEOPTS= \
+ 	CONFIG_IEEE80211AX=$(HOSTAPD_IEEE80211AX) \
+ 	CONFIG_IEEE80211BE=$(HOSTAPD_IEEE80211BE) \
+ 	CONFIG_MBO=$(CONFIG_WPA_MBO_SUPPORT) \
+-	CONFIG_UCODE=y CONFIG_APUP=y \
+ 	$(if $(HOSTAPD_IEEE80211BE),CONFIG_OCV=y)
+ 
+ 
+@@ -603,7 +601,7 @@ TARGET_CPPFLAGS := \
+ 	-D_GNU_SOURCE \
+ 	$(if $(CONFIG_WPA_MSG_MIN_PRIORITY),-DCONFIG_MSG_MIN_PRIORITY=$(CONFIG_WPA_MSG_MIN_PRIORITY))
+ 
+-TARGET_LDFLAGS += -lubox -lubus -lblobmsg_json -lucode -lm -lnl-tiny -ludebug
++TARGET_LDFLAGS += -lubox -lubus -lblobmsg_json -lm -lnl-tiny -ludebug
+ 
+ ifdef CONFIG_WPA_ENABLE_WEP
+     DRIVER_MAKEOPTS += CONFIG_WEP=y
