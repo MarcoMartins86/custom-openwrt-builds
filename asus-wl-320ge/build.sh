@@ -200,6 +200,9 @@ echo "$(((LIMIT - SIZE) / 1024)) KB to spare"
 
 mkdir -p "${HERE}/binaries"
 cp "${OUT}/${NAME}" "${HERE}/binaries/openwrt-${OPENWRT_VERSION}-${NAME#openwrt-}"
+# The manifest lists the release's package versions, to see what an update brought
+MANIFEST="${NAME%-squashfs.trx}.manifest"
+[ -f "${OUT}/${MANIFEST}" ] && cp "${OUT}/${MANIFEST}" "${HERE}/binaries/openwrt-${OPENWRT_VERSION}-${MANIFEST#openwrt-}"
 cd "${HERE}/binaries"
 sha256sum "openwrt-${OPENWRT_VERSION}-"*.trx > sha256sums
 ls -l "openwrt-${OPENWRT_VERSION}-"*
