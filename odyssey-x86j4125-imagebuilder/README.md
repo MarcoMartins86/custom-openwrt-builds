@@ -135,10 +135,13 @@ over a USB cable, so the whole network stays online without touching each device
 up in [files/etc/uci-defaults/99-mwan3_config](files/etc/uci-defaults/99-mwan3_config) and
 turned on by `BACKUP_WAN` (see [Settings](#settings)).
 
-- **The phone** comes up as the `wwan` interface on `usb0`, in the WAN firewall zone. An
-  Android phone: plug it in and turn on **USB tethering** in its settings. An iPhone: turn on
-  **Personal Hotspot**, plug it in, and tap **Trust** the first time; `usbmuxd` pairs it.
-  Images carry the drivers for both (RNDIS/CDC and `ipheth`).
+- **The phone** becomes the `wwan` interface, in the WAN firewall zone. An Android phone:
+  plug it in and turn on **USB tethering** in its settings. An iPhone: turn on **Personal
+  Hotspot**, plug it in, and tap **Trust** the first time; `usbmuxd` pairs it. Images carry
+  the drivers for both (RNDIS/CDC and `ipheth`). The kernel names the tether `usb0` on some
+  phones and `eth2` on others (iOS does), so a hotplug script
+  ([30-phone-tether](files/etc/hotplug.d/net/30-phone-tether)) binds whichever one appears,
+  matched by driver so it never touches the real LAN/WAN ports.
 - **mwan3** watches both links by pinging `1.1.1.1` and `8.8.8.8` through each. The ISP WAN
   is preferred; five misses in a row (about 25 seconds, not a single blip) fail the network
   over to the phone, and three good replies bring it back. This catches an ISP that is down

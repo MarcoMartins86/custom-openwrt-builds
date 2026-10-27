@@ -5,11 +5,13 @@
 # the phone is ready the moment it is plugged in.
 . /etc/build.env
 
-# The tethered phone comes up as usb0, handing out an address by DHCP: an Android phone when
-# "USB tethering" is turned on (RNDIS or CDC), an iPhone after a one-time "Trust" with
-# Personal Hotspot on (usbmuxd does the pairing). The interface sits in the WAN firewall
-# zone, so it is masqueraded like the main WAN; a higher metric keeps it behind the ISP WAN
-# while both are up.
+# The tethered phone comes up as a USB network device handing out an address by DHCP: an
+# Android phone when "USB tethering" is turned on (RNDIS or CDC), an iPhone after a one-time
+# "Trust" with Personal Hotspot on (usbmuxd does the pairing). The kernel names it usb0 on
+# some phones and an ethN on others (iOS's ipheth does), so hotplug.d/net/30-phone-tether
+# binds whichever one appears to this interface; usb0 below is only the default. The
+# interface sits in the WAN firewall zone, so it is masqueraded like the main WAN; a higher
+# metric keeps it behind the ISP WAN while both are up.
 uci -q batch << EOI
 set network.wwan=interface
 set network.wwan.proto='dhcp'
