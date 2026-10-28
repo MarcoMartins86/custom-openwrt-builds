@@ -149,6 +149,10 @@ turned on by `BACKUP_WAN` (see [Settings](#settings)).
   while the WAN cable's link stays up — the case a plain cable-based failover misses, and the
   one watchcat only restarts the WAN for. Each restart brings the WAN up counted as down, so
   it has to answer before it takes the network back from the phone; a dead ISP never does.
+- **DNS rides through it.** unbound restarts only for LAN changes, so watchcat's restarts of
+  the WAN leave it running. When mwan3 finds a link working again, a hook
+  ([96-unbound](files/etc/hotplug.d/iface/96-unbound)) clears what unbound learned while
+  there was no internet; otherwise every lookup could fail for up to 15 minutes.
 - **While the ISP is up the phone is a standby** and carries no traffic. On failover the
   whole network uses the phone's data, so watch a metered plan; `BACKUP_WAN=0` keeps the
   interface ready but leaves the switch-over to be done by hand in LuCI (Network → Load

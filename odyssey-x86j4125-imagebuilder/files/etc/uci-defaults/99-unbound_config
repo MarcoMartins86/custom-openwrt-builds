@@ -2,6 +2,10 @@
 # https://github.com/openwrt/packages/blob/master/net/unbound/files/README.md
 # "enabled" has to be spelled out: without it, LuCI's page for this service
 # shows it switched off and stops the DNS server when the page is saved.
+# unbound resolves by itself, from the root servers, so nothing on the WAN side
+# concerns it: the package's default also restarts it on every event of the WAN,
+# which during an outage is twice per watchcat restart, each time emptying its
+# cache and fetching the root zone's DNSSEC key again over whatever link is left.
 uci -q batch << EOI
 set unbound.@unbound[0].enabled="1"
 set unbound.@unbound[0].add_local_fqdn="3"
@@ -10,6 +14,8 @@ set unbound.@unbound[0].dhcp_link="odhcpd"
 set unbound.@unbound[0].dhcp4_slaac6="1"
 set unbound.@unbound[0].unbound_control="1"
 set unbound.@unbound[0].validator="1"
+delete unbound.@unbound[0].iface_trig
+add_list unbound.@unbound[0].iface_trig="lan"
 commit unbound
 set dhcp.odhcpd.leasetrigger="/usr/lib/unbound/odhcpd.sh"
 commit dhcp

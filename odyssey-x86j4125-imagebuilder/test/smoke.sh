@@ -47,6 +47,7 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'[ "$(uci -q get fstab.@global[0].check_fs)" = 1 ] && logread | grep -q "e2fsck: data: clean" || f="$f fsck"' \
 	'/etc/init.d/watchcat running && [ "$(uci -q get watchcat.wan.mode)" = restart_iface ] || f="$f watchcat"' \
 	'[ "'"${BACKUP_WAN}"'" != 1 ] || { /etc/init.d/mwan3 enabled && [ "$(uci -q get mwan3.wan.initial_state)" = offline ]; } || f="$f backup-wan"' \
+	'[ "$(uci -q get unbound.@unbound[0].iface_trig)" = lan ] && [ -f /etc/hotplug.d/iface/96-unbound ] || f="$f unbound-triggers"' \
 	'[ "$(uci -q get banip.global.ban_backupdir)" = /mnt/data/banip/backup ] || f="$f banip-backups"' \
 	'[ -z "'"${BANIP_REFRESH_HOUR}"'" ] || grep -q "banip reload" /etc/crontabs/root || f="$f no-banip-refresh"' \
 	'A="'"${LETSENCRYPT:+${DDNS_HOST}}"'"; S="'"${ROUTER_NAME}"'.$A"; L='"${LAN_ADDRESS%/*}"'' \
