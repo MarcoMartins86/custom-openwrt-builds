@@ -48,6 +48,7 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'/etc/init.d/watchcat running && [ "$(uci -q get watchcat.wan.mode)" = restart_iface ] || f="$f watchcat"' \
 	'[ "'"${BACKUP_WAN}"'" != 1 ] || { /etc/init.d/mwan3 enabled && [ "$(uci -q get mwan3.wan.initial_state)" = offline ]; } || f="$f backup-wan"' \
 	'[ "$(uci -q get unbound.@unbound[0].iface_trig)" = lan ] && [ -f /etc/hotplug.d/iface/96-unbound ] || f="$f unbound-triggers"' \
+	'[ "'"${IPV6}"'" = 1 ] || grep -q "do-ip6: no" /var/lib/unbound/unbound.conf || f="$f unbound-ipv4"' \
 	'[ "$(uci -q get banip.global.ban_backupdir)" = /mnt/data/banip/backup ] || f="$f banip-backups"' \
 	'[ -z "'"${BANIP_REFRESH_HOUR}"'" ] || grep -q "banip reload" /etc/crontabs/root || f="$f no-banip-refresh"' \
 	'A="'"${LETSENCRYPT:+${DDNS_HOST}}"'"; S="'"${ROUTER_NAME}"'.$A"; L='"${LAN_ADDRESS%/*}"'' \
