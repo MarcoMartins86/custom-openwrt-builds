@@ -87,7 +87,7 @@ inside double quotes still on `$`, `\` and backticks.
 | `IMAGE_KINDS` | `ext4 efi` | Images to build: file systems `ext4` and `squashfs`, boot methods `efi` and `bios`, and `targz` for the root file system as an archive. One image per file system and boot method |
 | `ROUTER_NAME` | `odyssey` | Host name; the HTTPS certificate is issued to `<name>.lan` |
 | `LAN_ADDRESS` | `192.168.2.1/24` | The router's LAN address and the size of the network |
-| `IPV6` | `0` | `1` keeps OpenWrt's IPv6 on the WAN and the LAN; `0` switches it off, for a connection without IPv6 |
+| `IPV6` | `0` | `1` keeps OpenWrt's IPv6 on the WAN and the LAN; `0` switches it off, for a connection without IPv6, and has unbound ask name servers over IPv4 only |
 | `TIMEZONE` | `Europe/Lisbon` | Time zone, by the name LuCI lists |
 | `WAN_DNS_CLIENTS` | empty | Network on the WAN side whose devices may use the router's DNS; empty keeps DNS closed there |
 | `BACKUP_WAN` | `1` | `1` fails the network over to a USB-tethered phone when the ISP WAN is down (mwan3); `0` keeps the backup interface but not the automatic failover |

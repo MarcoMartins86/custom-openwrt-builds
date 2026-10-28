@@ -39,3 +39,12 @@ set firewall.wan_dns.target="ACCEPT"
 commit firewall
 EOI
 fi
+
+# Without IPv6 to the internet, unbound must not ask name servers over IPv6.
+# Those queries never get an answer, yet look faster than the real answers when
+# the link is slow (a tethered phone takes a second or more), so unbound keeps
+# choosing them and returns SERVFAIL; github.com did, on 2026-10-28.
+if [ "${IPV6}" != 1 ]; then
+	uci -q set unbound.@unbound[0].protocol="ip4_only"
+	uci -q commit unbound
+fi
