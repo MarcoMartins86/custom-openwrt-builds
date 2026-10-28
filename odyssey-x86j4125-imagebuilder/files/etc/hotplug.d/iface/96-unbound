@@ -1,0 +1,9 @@
+# When mwan3 finds a WAN link working again (the ISP back, or a tethered phone
+# plugged in), drop what unbound learned while there was no internet: it skips
+# servers that did not answer for up to 15 minutes, and a failed fetch of the
+# root zone's DNSSEC key turns every lookup into SERVFAIL until it retries.
+[ "${ACTION}" = connected ] && pidof unbound > /dev/null || exit 0
+for flush in "flush_infra all" flush_bogus flush_negative flush_requestlist; do
+	unbound-control $flush > /dev/null 2>&1
+done
+logger -t unbound "caches flushed, ${INTERFACE} connected"
