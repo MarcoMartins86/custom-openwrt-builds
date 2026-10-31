@@ -15,8 +15,8 @@ What the access point does once flashed:
 | Area | Setup | Configured in |
 |---|---|---|
 | Network | The Ethernet port and the Wi-Fi are one bridge in the main router's network, which hands out the addresses. The access point itself is at `192.168.2.3/24`, with `192.168.2.1` as gateway and DNS. No DHCP or DNS server, no firewall, no IPv6 | `99-uci_config` |
-| Wi-Fi | One 2.4 GHz network with WPA2 on a fixed channel. hostapd runs on its own from `/etc/hostapd.conf`, which build.sh writes from the settings; OpenWrt's Wi-Fi scripts are not used | `build.sh`, `files/etc/init.d/ap` |
-| Repeater | With `REPEATER=1`, the access point also joins the same Wi-Fi as a client on a second interface (`sta0`, its own MAC), and `relayd` ties that uplink to the bridge, so its clients reach the main router over the air without a cable. The one radio carries both, so the channel has to be the upstream's | `build.sh`, `files/etc/init.d/repeater` |
+| Wi-Fi | One 2.4 GHz network with WPA2 on a fixed channel. hostapd runs on its own from `/etc/hostapd.conf`, which build.sh writes from the settings; OpenWrt's Wi-Fi scripts are not used. The radio's queues are capped at 512 KB of the 16 MB | `build.sh`, `files/etc/init.d/ap` |
+| Repeater | With `REPEATER=1`, the access point also joins a Wi-Fi as a client on a second interface (`sta0`), and `relayd` ties that uplink to the bridge, so its clients reach the main router over the air without a cable. The one radio carries both, so the channel has to be the upstream's, and both use the radio's one address: the radio acknowledges frames for that address only | `build.sh`, `files/etc/init.d/repeater` |
 | Settings | Stateless: everything comes from the image. `/etc` gets a RAM overlay at every boot and the rest stays the read-only squashfs; nothing writes to the flash outside a firmware upgrade, and a change made on the access point is gone after a restart | `files/lib/preinit/80_mount_root`, `kernel.config` |
 | Access | SSH with keys only. The host key is made once by build.sh and comes with the image, so it stays the same | `99-uci_config`, `build.sh` |
 | Memory | Swap compressed in memory (zram), a trimmed kernel, small buffers and tables; see [Memory](#memory) | `kernel.config`, `kernel-patches/`, `mac80211-patches/` |
@@ -53,7 +53,7 @@ minutes; the next ones only redo what changed. [build.sh](build.sh) does the wor
 | `kernel-patches/999-net-bridge-…` | netifd can make a bridge in a kernel without VLAN filtering: it always sends "filtering off", which such a kernel refused, so no bridge came up at all |
 | `kernel-patches/999-b44-…` | 64 receive buffers for the Ethernet port instead of 200 (300 KB) |
 | `kernel-patches/999-iomap-…`, `999-mm-…`, `999-squashfs-…` | buffers allocated at boot made smaller: a 64 KB zero buffer, 32 KB network page caches, eight squashfs metadata blocks |
-| `mac80211-patches/` | 512 Wi-Fi queue flows instead of 4096 (224 KB); 128 b43 transmit slots instead of 256; b43 able to run an access point and a station together on the one radio, which the repeater needs |
+| `mac80211-patches/` | 512 Wi-Fi queue flows instead of 4096 (224 KB); 128 b43 transmit slots instead of 256; for the repeater, b43 able to run an access point and a station together on the one radio at one address, which mac80211 is changed to allow: the access point owns the radio whichever comes up first, and group keys stay in software, as the two roles' keys would overwrite each other in the hardware's shared slots |
 
 The kernel keeps only the exports the image's modules use, listed in
 [ksyms-keep.txt](ksyms-keep.txt). A module needing one that is not there stops the build;
@@ -176,16 +176,18 @@ Once the access point runs OpenWrt:
 
 It streams the image over SSH straight into the firmware partition with `mtd` and reboots:
 `mtd` checks the image's header as it writes, with stateless settings there is nothing to
-keep, and the 16 MB device has no room to stage the image before writing it.
+keep, and the 16 MB device has no room to stage the image before writing it. Flash over
+the Ethernet cable, not through the access point's own Wi-Fi: a connection that drops
+halfway leaves half an image, and then only the boot loader's recovery mode takes a new one.
 
 ## Good to know
 
 - The access point is 802.11g only, up to 54 Mbps on the air.
 - A Wi-Fi network with the same name and password as another access point in the house
   lets devices move between them.
-- As a repeater the one radio carries the access point and the uplink together, taking
-  turns, so throughput about halves and latency rises under load: it is for reach and light
-  use, not a busy link. It also holds the uplink until the station has joined and the
+- As a repeater every packet crosses the air twice on the one channel, to the access point
+  and on over the uplink, so throughput about halves and latency rises under load: it is
+  for reach and light use, not a busy link. It also holds the uplink until the station has joined and the
   gateway answers, so `relayd` routes it at once instead of finding it slowly.
 - Without the kernel's VLAN filtering, netifd makes no bridge unless the kernel has
   `kernel-patches/999-net-bridge-accept-vlan-filtering-off.patch`: the access point then

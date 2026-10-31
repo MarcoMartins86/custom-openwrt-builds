@@ -1,0 +1,68 @@
+From: Marco Martins
+Subject: [mac80211] let an access point and a station share an address
+
+Some hardware acknowledges frames for one address only. An access point and a
+station running on it together, for a repeater, then need the same address,
+which mac80211 refuses. Add a hardware flag for drivers to allow it. The two
+still receive apart: data frames by the sender's station entry, management
+frames by BSSID, which the access point checks on accepting a frame and the
+station on handling it.
+---
+--- a/include/net/mac80211.h
++++ b/include/net/mac80211.h
+@@ -2892,6 +2892,10 @@
+  *	HW flag so drivers can opt in according to their own control, e.g. in
+  *	testing.
+  *
++ * @IEEE80211_HW_AP_STA_SAME_ADDR: The hardware acknowledges frames for one
++ *	address only, so an access point and a station interface running at
++ *	the same time share it.
++ *
+  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
+  */
+ enum ieee80211_hw_flags {
+@@ -2952,6 +2956,7 @@
+ 	IEEE80211_HW_DISALLOW_PUNCTURING,
+ 	IEEE80211_HW_HANDLES_QUIET_CSA,
+ 	IEEE80211_HW_STRICT,
++	IEEE80211_HW_AP_STA_SAME_ADDR,
+ 
+ 	/* keep last, obviously */
+ 	NUM_IEEE80211_HW_FLAGS
+--- a/net/mac80211/debugfs.c
++++ b/net/mac80211/debugfs.c
+@@ -503,6 +503,7 @@
+ 	FLAG(DISALLOW_PUNCTURING),
+ 	FLAG(HANDLES_QUIET_CSA),
+ 	FLAG(STRICT),
++	FLAG(AP_STA_SAME_ADDR),
+ #undef FLAG
+ };
+ 
+--- a/net/mac80211/iface.c
++++ b/net/mac80211/iface.c
+@@ -326,8 +326,14 @@
+ 	return _ieee80211_change_mac(sdata, addr);
+ }
+ 
+-static inline int identical_mac_addr_allowed(int type1, int type2)
++static inline int identical_mac_addr_allowed(struct ieee80211_local *local,
++					     int type1, int type2)
+ {
++	if (ieee80211_hw_check(&local->hw, AP_STA_SAME_ADDR) &&
++	    ((type1 == NL80211_IFTYPE_AP && type2 == NL80211_IFTYPE_STATION) ||
++	     (type1 == NL80211_IFTYPE_STATION && type2 == NL80211_IFTYPE_AP)))
++		return 1;
++
+ 	return type1 == NL80211_IFTYPE_MONITOR ||
+ 		type2 == NL80211_IFTYPE_MONITOR ||
+ 		type1 == NL80211_IFTYPE_P2P_DEVICE ||
+@@ -394,7 +400,7 @@
+ 			/*
+ 			 * check whether it may have the same address
+ 			 */
+-			if (!identical_mac_addr_allowed(iftype,
++			if (!identical_mac_addr_allowed(local, iftype,
+ 							nsdata->vif.type))
+ 				return -ENOTUNIQ;
+ 

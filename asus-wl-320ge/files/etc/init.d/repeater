@@ -18,17 +18,17 @@ start_service() {
 	[ "${REPEATER}" = 1 ] || return 0
 	[ -s /etc/wpa_supplicant-uplink.conf ] || return 0
 
-	# The station needs a MAC of its own: the access point already uses the radio's, and
-	# the driver turns away a second interface that shares it. Toggling the
-	# locally-administered bit of the radio's address gives one that is stable and distinct.
-	mac="$(cat /sys/class/ieee80211/phy0/macaddress)"
-	mac="$(printf '%02x' $((0x${mac%%:*} ^ 0x02))):${mac#*:}"
-	iw phy phy0 interface add ${STA} type managed addr "${mac}" 2> /dev/null
+	# The station shares the radio's address with the access point: the radio acknowledges
+	# frames for that one address only, and a station with another would get none of its
+	# frames acknowledged (mac80211-patches/brcm/999-b43-ap-sta-coexist.patch)
+	iw phy phy0 interface add ${STA} type managed \
+		addr "$(cat /sys/class/ieee80211/phy0/macaddress)" 2> /dev/null
 	ip link set ${STA} up
 
+	# Restarted however often they stop: there is no one to restart them by hand
 	procd_open_instance uplink
 	procd_set_param command /usr/sbin/wpa_supplicant -i ${STA} -c /etc/wpa_supplicant-uplink.conf -s
-	procd_set_param respawn
+	procd_set_param respawn 3600 5 0
 	procd_close_instance
 
 	# relayd probes for the gateway once, as it starts, to route the uplink across the
@@ -43,7 +43,7 @@ start_service() {
 	#   reaches the upstream (for DNS and time), not only the clients it forwards.
 	procd_open_instance relay
 	procd_set_param command /bin/sh -c "while ! iw dev ${STA} link 2>/dev/null | grep -q Connected; do sleep 1; done; ip route add ${GATEWAY} dev ${STA} 2>/dev/null; n=0; while [ \$n -lt 20 ] && ! ping -c1 -W2 ${GATEWAY} >/dev/null 2>&1; do sleep 1; n=\$((n+1)); done; exec /usr/sbin/relayd -I br-lan -I ${STA} -G ${GATEWAY} -B -D -L ${LAN_ADDRESS%/*}"
-	procd_set_param respawn
+	procd_set_param respawn 3600 5 0
 	procd_close_instance
 }
 
