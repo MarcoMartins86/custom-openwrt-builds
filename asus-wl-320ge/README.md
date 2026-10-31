@@ -51,7 +51,6 @@ minutes; the next ones only redo what changed. [build.sh](build.sh) does the wor
 | `patches/0002` | hostapd without ucode, which takes about 300 KB of memory in it |
 | `patches/0003` | the WL-320gE as a device: the product ID ASUS's firmware asks for, no marker for a settings partition, and b43 available with PCI left out of the kernel |
 | `kernel-patches/999-net-bridge-…` | netifd can make a bridge in a kernel without VLAN filtering: it always sends "filtering off", which such a kernel refused, so no bridge came up at all |
-| `kernel-patches/999-b44-…` | 64 receive buffers for the Ethernet port instead of 200 (300 KB) |
 | `kernel-patches/999-iomap-…`, `999-mm-…`, `999-squashfs-…` | buffers allocated at boot made smaller: a 64 KB zero buffer, 32 KB network page caches, eight squashfs metadata blocks |
 | `mac80211-patches/` | 512 Wi-Fi queue flows instead of 4096 (224 KB); 128 b43 transmit slots instead of 256; for the repeater, b43 able to run an access point and a station together on the one radio at one address, which mac80211 is changed to allow: the access point owns the radio whichever comes up first, and group keys stay in software, as the two roles' keys would overwrite each other in the hardware's shared slots |
 
@@ -120,13 +119,16 @@ process's memory map then showed where every page went. The image boots as on th
 | 15 MB | runs, 1.5 MB free after boot |
 | 14 MB | runs, 1 MB free after boot |
 
+On the device itself, as a repeater with a phone on it, about 3 MB stay available after
+boot, and uploads of 160 and 320 MB from a wired client through the repeater ran without
+touching swap.
+
 What made the room, largest first:
 
 | Change | Memory saved |
 |---|---|
 | hostapd without ucode, and netifd without the Wi-Fi scripts | 720 KB, and 200 KB of ucode code no longer loaded |
 | Kernel exports trimmed to what the modules use | 585 KB |
-| Ethernet receive buffers (b44) | 300 KB |
 | TCP source port table (`INET_TABLE_PERTURB_ORDER`) | 255 KB |
 | Wi-Fi queue flows (mac80211) | 224 KB |
 | `/etc` alone on the RAM overlay | 144 KB |
@@ -189,6 +191,9 @@ halfway leaves half an image, and then only the boot loader's recovery mode take
   and on over the uplink, so throughput about halves and latency rises under load: it is
   for reach and light use, not a busy link. It also holds the uplink until the station has joined and the
   gateway answers, so `relayd` routes it at once instead of finding it slowly.
+- The Ethernet port keeps its 200 receive buffers. With 64, a burst from a wired client
+  ran them dry, and the driver's recovery, a chip reset that swaps every buffer, let the
+  chip write into freed memory: the device crashed during a large upload.
 - Without the kernel's VLAN filtering, netifd makes no bridge unless the kernel has
   `kernel-patches/999-net-bridge-accept-vlan-filtering-off.patch`: the access point then
   has no address, and its Wi-Fi accepts clients that can reach nothing.
