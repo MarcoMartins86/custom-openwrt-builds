@@ -1,0 +1,52 @@
+#!/bin/sh /etc/rc.common
+# The repeater uplink: a station interface that joins the same Wi-Fi as a client, so this
+# device extends it. The one radio carries the access point and the uplink together on the
+# one channel, so WIFI_CHANNEL has to be the upstream's. relayd ties the station to the LAN
+# bridge (proxy-ARP and DHCP relay), which carries the access point's clients across the
+# three-address Wi-Fi link to the upstream router, a link that cannot be plain-bridged.
+# Built only when REPEATER=1 and a Wi-Fi password is set; see build.sh.
+
+# After the access point (START=96), so the radio is already on its channel when the
+# station associates
+START=97
+USE_PROCD=1
+
+STA=sta0
+
+start_service() {
+	. /etc/build.env
+	[ "${REPEATER}" = 1 ] || return 0
+	[ -s /etc/wpa_supplicant-uplink.conf ] || return 0
+
+	# The station shares the radio's address with the access point: the radio acknowledges
+	# frames for that one address only, and a station with another would get none of its
+	# frames acknowledged (mac80211-patches/brcm/999-b43-ap-sta-coexist.patch)
+	iw phy phy0 interface add ${STA} type managed \
+		addr "$(cat /sys/class/ieee80211/phy0/macaddress)" 2> /dev/null
+	ip link set ${STA} up
+
+	# Restarted however often they stop: there is no one to restart them by hand
+	procd_open_instance uplink
+	procd_set_param command /usr/sbin/wpa_supplicant -i ${STA} -c /etc/wpa_supplicant-uplink.conf -s
+	procd_set_param respawn 3600 5 0
+	procd_close_instance
+
+	# relayd probes for the gateway once, as it starts, to route the uplink across the
+	# station; that probe is lost if the station is not associated and passing data yet, and
+	# relayd then finds the gateway only slowly, by chance traffic. So first wait for the
+	# station to associate, then reach the gateway over it (which readies the link past the
+	# key handshake and fills the ARP cache), and only then start relayd, which now settles
+	# the route within seconds. respawn re-runs this if relayd ever exits.
+	#   -I keeps an ARP cache and host routes for each side; -B forwards broadcasts and -D
+	#   relays DHCP, so the access point's clients get their addresses from the upstream.
+	#   -L gives this device its own way across the relay, from its LAN address, so it too
+	#   reaches the upstream (for DNS and time), not only the clients it forwards.
+	procd_open_instance relay
+	procd_set_param command /bin/sh -c "while ! iw dev ${STA} link 2>/dev/null | grep -q Connected; do sleep 1; done; ip route add ${GATEWAY} dev ${STA} 2>/dev/null; n=0; while [ \$n -lt 20 ] && ! ping -c1 -W2 ${GATEWAY} >/dev/null 2>&1; do sleep 1; n=\$((n+1)); done; exec /usr/sbin/relayd -I br-lan -I ${STA} -G ${GATEWAY} -B -D -L ${LAN_ADDRESS%/*}"
+	procd_set_param respawn 3600 5 0
+	procd_close_instance
+}
+
+stop_service() {
+	iw dev ${STA} del 2> /dev/null
+}

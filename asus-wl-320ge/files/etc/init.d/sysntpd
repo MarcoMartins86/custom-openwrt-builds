@@ -1,0 +1,19 @@
+#!/bin/sh /etc/rc.common
+# The time from the network once at boot, instead of a daemon that keeps it in sync: the
+# clock drifts by seconds a day, which only shows in the log's times. Replaces busybox's
+# version.
+
+START=98
+
+start() {
+	local servers="$(uci -q get system.ntp.server)"
+
+	(
+		for try in 1 2 3 4 5 6; do
+			for server in $servers; do
+				ntpd -n -q -p "$server" > /dev/null 2>&1 && exit 0
+			done
+			sleep 10
+		done
+	) &
+}

@@ -1,0 +1,4 @@
+#!/bin/sh
+# OpenWrt's Wi-Fi scripts are not used: the access point comes from /etc/init.d/ap. boot
+# and the radio hotplug script still call this. Replaces wifi-scripts' version.
+exit 0

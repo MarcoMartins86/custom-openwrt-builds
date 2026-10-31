@@ -1,0 +1,14 @@
+# Stateless: the settings come only from the image. The root file system stays the
+# read-only squashfs, and /etc alone gets a RAM overlay at every boot, which costs fewer
+# inodes than one over the whole root. The kernel makes no settings partition (no squashfs
+# root split), so nothing writes to the flash outside a firmware upgrade. Replaces
+# base-files' version, which mounts that partition and restores settings kept over an
+# upgrade.
+
+do_mount_root() {
+	mkdir -p /tmp/etc-rw/upper /tmp/etc-rw/work
+	mount -t overlay overlay -o lowerdir=/etc,upperdir=/tmp/etc-rw/upper,workdir=/tmp/etc-rw/work /etc
+	boot_run_hook preinit_mount_root
+}
+
+[ "$INITRAMFS" = "1" ] || boot_hook_add preinit_main do_mount_root
