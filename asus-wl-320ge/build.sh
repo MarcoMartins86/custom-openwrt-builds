@@ -167,10 +167,11 @@ if [ -n "${WIFI_KEY}" ]; then
 		hw_mode=g "channel=${WIFI_CHANNEL}" wmm_enabled=1 \
 		wpa=2 wpa_key_mgmt=WPA-PSK rsn_pairwise=CCMP "wpa_passphrase=${WIFI_KEY}" \
 		> files/etc/hostapd.conf)
-	# The uplink joins the same network as a client; relayd forwards the access point's
-	# clients to it. A given upstream BSSID pins it to that one extender.
+	# The uplink joins the network as a client, the same one unless UPLINK_SSID names
+	# another; relayd forwards the access point's clients to it. A given upstream BSSID
+	# pins it to that one extender.
 	if [ "${REPEATER}" = 1 ]; then
-		(umask 077; { printf 'network={\n\tssid="%s"\n' "${WIFI_SSID}"
+		(umask 077; { printf 'network={\n\tssid="%s"\n' "${UPLINK_SSID:-${WIFI_SSID}}"
 			[ -n "${UPLINK_BSSID}" ] && printf '\tbssid=%s\n' "${UPLINK_BSSID}"
 			printf '\tkey_mgmt=WPA-PSK\n\tpsk="%s"\n}\n' "${WIFI_KEY}"
 		} > files/etc/wpa_supplicant-uplink.conf)

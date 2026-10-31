@@ -72,7 +72,7 @@ into `private/.env`, which overrides it and is not in the repo:
 | `TIMEZONE`, `TIMEZONE_RULE` | Lisbon | the time zone |
 | `WIFI_SSID`, `WIFI_COUNTRY`, `WIFI_CHANNEL` | `OpenWrt`, `PT`, `11` | the network. The channel is fixed: the Wi-Fi driver cannot survey channels for the access point to pick one |
 | `WIFI_KEY` | none | the password, 8 to 63 characters, in `private/.env` only. Without it the image comes with Wi-Fi off |
-| `REPEATER`, `UPLINK_BSSID` | off | `REPEATER=1` extends the Wi-Fi above instead of only serving it; `UPLINK_BSSID` pins which access point to join. Then `WIFI_CHANNEL` has to be the upstream's, and a `WIFI_KEY` is needed |
+| `REPEATER`, `UPLINK_SSID`, `UPLINK_BSSID` | off | `REPEATER=1` extends the Wi-Fi above instead of only serving it; `UPLINK_SSID` names the network to join when it is not `WIFI_SSID` (same password), and `UPLINK_BSSID` pins which access point to join. Then `WIFI_CHANNEL` has to be the upstream's, and a `WIFI_KEY` is needed |
 | `KEY` | none | for flash.sh: the SSH key to log in with |
 
 `private/files/` is copied into the image last: put the public SSH key allowed to log in at
