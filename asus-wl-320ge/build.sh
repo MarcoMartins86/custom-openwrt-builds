@@ -109,16 +109,20 @@ else
 	echo "CONFIG_UNUSED_KSYMS_WHITELIST=\"${HERE}/ksyms-keep.txt\"" >> "${KERNEL_CONFIG}"
 fi
 cat "${KERNEL_CONFIG}" >> "${SRC}/target/linux/bcm47xx/legacy/config-default"
-# Fixes for the kernel join OpenWrt's own pending kernel patches, and those for the Wi-Fi
-# stack its patches for mac80211. The copies from an earlier build are the only files there
-# that are not OpenWrt's, and go first.
+# Fixes for the kernel join OpenWrt's own pending kernel patches, those for the Wi-Fi
+# stack its patches for mac80211, and those for netifd the patches of its package, which
+# has none of its own. The copies from an earlier build are the only files there that are
+# not OpenWrt's, and go first.
 PENDING="${SRC}/target/linux/generic/pending-$(sed -n 's/^KERNEL_PATCHVER:=//p' "${SRC}/target/linux/bcm47xx/Makefile")"
 MAC80211="${SRC}/package/kernel/mac80211/patches"
-git -C "${SRC}" clean -fq -- "${PENDING}" "${MAC80211}"
+NETIFD="${SRC}/package/network/config/netifd/patches"
+git -C "${SRC}" clean -fdq -- "${PENDING}" "${MAC80211}" "${NETIFD}"
 cp "${HERE}"/kernel-patches/*.patch "${PENDING}/"
 for dir in "${HERE}"/mac80211-patches/*/; do
 	cp "${dir}"*.patch "${MAC80211}/$(basename "${dir}")/"
 done
+mkdir -p "${NETIFD}"
+cp "${HERE}"/netifd-patches/*.patch "${NETIFD}/"
 
 # Every package comes from OpenWrt's own tree, so the package feeds are left out
 mkdir -p "${HERE}/dl"

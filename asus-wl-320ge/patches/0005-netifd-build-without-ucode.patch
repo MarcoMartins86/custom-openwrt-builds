@@ -1,0 +1,33 @@
+From: Marco Martins
+Subject: netifd: build without ucode
+
+With netifd-patches/100-netifd-build-without-ucode.patch, which the build copies
+into the package's patches: netifd no longer pulls in ucode and its modules, and
+leaves out its ucode scripts, which run the Wi-Fi scripts this build does without
+(see 0002), and packet steering, which spreads the network's work over CPU cores
+this device has one of.
+---
+diff --git a/package/network/config/netifd/Makefile b/package/network/config/netifd/Makefile
+index a544aebb2b..70278ad504 100644
+--- a/package/network/config/netifd/Makefile
++++ b/package/network/config/netifd/Makefile
+@@ -21,8 +21,7 @@ include $(INCLUDE_DIR)/cmake.mk
+ define Package/netifd
+   SECTION:=base
+   CATEGORY:=Base system
+-  DEPENDS:=+libuci +libnl-tiny +libubus +ubus +ubusd +jshn +libubox +libudebug \
+-	+ucode +ucode-mod-fs +ucode-mod-ubus +ucode-mod-uloop +ucode-mod-uci
++  DEPENDS:=+libuci +libnl-tiny +libubus +ubus +ubusd +jshn +libubox +libudebug
+   TITLE:=OpenWrt Network Interface Configuration Daemon
+ endef
+ 
+@@ -43,6 +42,9 @@ define Package/netifd/install
+ 	$(INSTALL_DIR) $(1)/sbin
+ 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/netifd $(1)/sbin/
+ 	$(CP) ./files/* $(1)/
++	# The ucode scripts, and the packet steering they do, which a single core does without
++	rm -f $(1)/lib/netifd/main.uc $(1)/lib/netifd/utils.uc \
++		$(1)/usr/libexec/network/packet-steering.uc $(1)/etc/init.d/packet_steering
+ 	$(INSTALL_DIR) $(1)/etc/udhcpc.user.d/
+ 	$(CP) \
+ 		$(PKG_BUILD_DIR)/scripts/utils.sh \

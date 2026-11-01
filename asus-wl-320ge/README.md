@@ -38,8 +38,9 @@ minutes; the next ones only redo what changed. [build.sh](build.sh) does the wor
 
 - clones OpenWrt at the release's tag into `openwrt/`, with the downloads in `dl/`
 - applies [patches/](patches) to it, adds [kernel.config](kernel.config) to the kernel's
-  options, and copies [kernel-patches/](kernel-patches) and
-  [mac80211-patches/](mac80211-patches) among OpenWrt's own patches
+  options, and copies [kernel-patches/](kernel-patches),
+  [mac80211-patches/](mac80211-patches) and [netifd-patches/](netifd-patches) among
+  OpenWrt's own patches
 - builds with [openwrt.config](openwrt.config), and stops when a line of it, or of
   kernel.config, did not make it into the result
 - makes the SSH host key the first time (into `private/`), writes `/etc/hostapd.conf`,
@@ -52,6 +53,7 @@ minutes; the next ones only redo what changed. [build.sh](build.sh) does the wor
 | `patches/0002` | hostapd without ucode, which takes about 300 KB of memory in it |
 | `patches/0003` | the WL-320gE as a device: the product ID ASUS's firmware asks for, no marker for a settings partition, and b43 available with PCI left out of the kernel |
 | `patches/0004` | the Wi-Fi packages without what an 802.11g b43 access point does without, none of which this image loaded: OpenWrt's Wi-Fi scripts and the ucode modules they load, GCM, which only GCMP keys use, the random number generators behind CTR, and cordic, which only b43's N and LP PHYs use (the kernel keeps GCM and cordic as modules, as mac80211 and b43 ask for them) |
+| `patches/0005`, `netifd-patches/` | netifd without ucode, which only runs OpenWrt's Wi-Fi scripts in it, and without packet steering, which spreads the network's work over CPU cores this device has one of |
 | `kernel-patches/999-net-bridge-…` | netifd can make a bridge in a kernel without VLAN filtering: it always sends "filtering off", which such a kernel refused, so no bridge came up at all |
 | `kernel-patches/999-iomap-…`, `999-mm-…`, `999-squashfs-…` | buffers allocated at boot made smaller: a 64 KB zero buffer, 32 KB network page caches, eight squashfs metadata blocks |
 | `mac80211-patches/` | 512 Wi-Fi queue flows instead of 4096 (224 KB); 128 b43 transmit slots instead of 256; b43's own transmit queue held to 32 frames, so a backlog stays in mac80211's capped queues, which drop early, instead of growing until memory runs out; for the repeater, b43 able to run an access point and a station together on the one radio at one address, which mac80211 is changed to allow: the access point owns the radio whichever comes up first, and group keys stay in software, as the two roles' keys would overwrite each other in the hardware's shared slots |
@@ -96,9 +98,9 @@ OpenWrt's failsafe mode works as usual.
 
 | Part | Size |
 |---|---|
-| Kernel, LZMA | 1,120 KB |
-| Root file system, squashfs in 4 KB blocks | 2,450 KB |
-| Image, with the boot loader's stub | 3,572 KB of 3,904 KB |
+| Kernel, LZMA | 1,116 KB |
+| Root file system, squashfs in 4 KB blocks | 2,296 KB |
+| Image, with the boot loader's stub | 3,456 KB of 3,904 KB |
 
 The smallest squashfs blocks cost about 500 KB of flash over 32 KB blocks and save about
 140 KB of memory; with no settings partition, the flash has the room.
@@ -134,6 +136,7 @@ What made the room, largest first:
 | Kernel exports trimmed to what the modules use | 585 KB |
 | TCP source port table (`INET_TABLE_PERTURB_ORDER`) | 255 KB |
 | Wi-Fi queue flows (mac80211) | 224 KB |
+| netifd without ucode at all, and GCM and cordic out of memory (on the device: 170 to 280 KB more available after boot) | about 200 KB |
 | `/etc` alone on the RAM overlay | 144 KB |
 | Squashfs in 4 KB blocks | 140 KB |
 | No jffs2 (stateless), kernel log of 8 KB, PCI left out | 130, 100, 125 KB |
