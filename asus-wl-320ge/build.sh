@@ -41,6 +41,10 @@ if [ -n "${WIFI_KEY}" ]; then
 else
 	echo "No WIFI_KEY in private/.env: the image comes with Wi-Fi switched off"
 fi
+case "${RESTART_AT}" in
+	""|[01][0-9]:[0-5][0-9]|2[0-3]:[0-5][0-9]) ;;
+	*) echo "RESTART_AT has to be a time like 04:00, or empty" >&2; exit 1 ;;
+esac
 # As a repeater the access point also joins the network it serves, as a client, to reach
 # the internet over Wi-Fi; relayd ties the two together. This needs the Wi-Fi password, and
 # the one radio serves both on the one channel, so WIFI_CHANNEL has to be the upstream's.
@@ -155,8 +159,9 @@ cp -a "${HERE}/private/files/." files/
 chmod 700 files/etc/dropbear
 chmod 600 files/etc/dropbear/*
 # The settings travel in the image as /etc/build.env, which the first-boot script and the
-# repeater service read. REPEATER and UPLINK_BSSID may be empty (a plain access point).
-write_env ${SETTINGS} REPEATER UPLINK_BSSID > files/etc/build.env
+# repeater and restart services read. REPEATER and UPLINK_BSSID may be empty (a plain access
+# point), and RESTART_AT (no daily restart).
+write_env ${SETTINGS} REPEATER UPLINK_BSSID RESTART_AT > files/etc/build.env
 # The access point's configuration, with the Wi-Fi password: do not hand the image out.
 # In repeater mode the uplink's client configuration, also with the password, goes beside it.
 rm -f files/etc/hostapd.conf files/etc/wpa_supplicant-uplink.conf

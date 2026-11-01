@@ -18,6 +18,7 @@ What the access point does once flashed:
 | Wi-Fi | One 2.4 GHz network with WPA2 on a fixed channel. hostapd runs on its own from `/etc/hostapd.conf`, which build.sh writes from the settings; OpenWrt's Wi-Fi scripts are not used, so a hook hands the access point to netifd as a bridge port whenever the LAN comes up, and a restart of netifd no longer leaves it out. The radio's queues are capped at 512 KB of the 16 MB | `build.sh`, `files/etc/init.d/ap`, `files/etc/hotplug.d/iface/50-ap-bridge` |
 | Repeater | With `REPEATER=1`, the access point also joins a Wi-Fi as a client on a second interface (`sta0`), and `relayd` ties that uplink to the bridge, so its clients reach the main router over the air without a cable. The one radio carries both, so the channel has to be the upstream's, and both use the radio's one address: the radio acknowledges frames for that address only | `build.sh`, `files/etc/init.d/repeater` |
 | Settings | Stateless: everything comes from the image. `/etc` gets a RAM overlay at every boot and the rest stays the read-only squashfs; nothing writes to the flash outside a firmware upgrade, and a change made on the access point is gone after a restart | `files/lib/preinit/80_mount_root`, `kernel.config` |
+| Restart | Every day at 04:00, with about a minute without Wi-Fi: about 3.7 MB are available after boot and about 1 MB less after a day. There is no cron daemon; the service reads the clock, and acts only once the clock has been set from the network, never in the first hour after a start | `files/etc/init.d/restart`, `files/etc/init.d/sysntpd` |
 | Access | SSH with keys only. The host key is made once by build.sh and comes with the image, so it stays the same | `99-uci_config`, `build.sh` |
 | Memory | Swap compressed in memory (zram), a trimmed kernel, small buffers and tables; see [Memory](#memory) | `kernel.config`, `kernel-patches/`, `mac80211-patches/` |
 
@@ -72,6 +73,7 @@ into `private/.env`, which overrides it and is not in the repo:
 | `WIFI_SSID`, `WIFI_COUNTRY`, `WIFI_CHANNEL` | `OpenWrt`, `PT`, `11` | the network. The channel is fixed: the Wi-Fi driver cannot survey channels for the access point to pick one |
 | `WIFI_KEY` | none | the password, 8 to 63 characters, in `private/.env` only. Without it the image comes with Wi-Fi off |
 | `REPEATER`, `UPLINK_SSID`, `UPLINK_BSSID` | off | `REPEATER=1` extends the Wi-Fi above instead of only serving it; `UPLINK_SSID` names the network to join when it is not `WIFI_SSID` (same password), and `UPLINK_BSSID` pins which access point to join. Then `WIFI_CHANNEL` has to be the upstream's, and a `WIFI_KEY` is needed |
+| `RESTART_AT` | `04:00` | the time of the daily restart, in the time zone above; empty for none |
 | `KEY` | none | for flash.sh: the SSH key to log in with |
 
 `private/files/` is copied into the image last: put the public SSH key allowed to log in at
