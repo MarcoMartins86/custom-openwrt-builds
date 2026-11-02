@@ -6,6 +6,7 @@ on how to build, test and flash it.
 
 | Folder | Router |
 |---|---|
+| [asus-wl-320ge](asus-wl-320ge) | An [ASUS WL-320gE](https://openwrt.org/toh/asus/wl-320g) as a Wi-Fi access point, bridged into the main router's network or extending an existing Wi-Fi as a repeater over the air, on OpenWrt 25.12 in 4 MB of flash and 16 MB of memory: stateless, with hostapd on its own, a patched b43 for access-point-and-station at once, and a trimmed kernel. Built from OpenWrt's source |
 | [odyssey-x86j4125-imagebuilder](odyssey-x86j4125-imagebuilder) | A [Seeed ODYSSEY-X86J4125](https://wiki.seeedstudio.com/ODYSSEY-X86J4105/) as a home router, on OpenWrt 25.12: ad blocking, a VPN, Docker with Home Assistant, sites by name with a Let's Encrypt certificate. Built with OpenWrt's ImageBuilder, nothing compiled |
 
 Shared by the builds:

@@ -23,6 +23,21 @@
     },
     {
       "customType": "regex",
+      "description": "The OpenWrt release of the ASUS WL-320gE build, in its .env. It names the SDK container the build runs in, so a release only counts once its container is published.",
+      "managerFilePatterns": [
+        "/^asus-wl-320ge/\\.env$/"
+      ],
+      "matchStrings": [
+        "OPENWRT_VERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "openwrt-asus-wl-320ge",
+      "packageNameTemplate": "ghcr.io/openwrt/sdk",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^bcm47xx-legacy-v(?<version>\\d+\\.\\d+\\.\\d+)$"
+    },
+    {
+      "customType": "regex",
       "description": "Packages downloaded from GitHub releases in extra-packages.txt",
       "managerFilePatterns": [
         "/^odyssey-x86j4125-imagebuilder/extra-packages\\.txt$/"

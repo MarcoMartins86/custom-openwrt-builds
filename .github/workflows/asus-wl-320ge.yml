@@ -1,0 +1,78 @@
+# Builds the ASUS WL-320gE image from OpenWrt's source with the public settings in .env, on
+# every pull request and every change to main that touches the build. build.sh stops if the
+# image does not fit the flash, or if a line of the OpenWrt or kernel configuration did not
+# make it into the result. It uses no secrets: the image to flash, with the settings in
+# private/.env, is built on your own machine.
+#
+# There is no boot test here. This is a Broadcom BCM5352 with a b43 radio, which QEMU does
+# not emulate; the image, and the single-radio access-point-and-station repeater in
+# particular, is verified on the device itself.
+name: ASUS WL-320gE
+
+on:
+  pull_request:
+    paths:
+      - "asus-wl-320ge/**"
+      - ".github/workflows/asus-wl-320ge.yml"
+  push:
+    branches: [main]
+    paths:
+      - "asus-wl-320ge/**"
+      - ".github/workflows/asus-wl-320ge.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-26.04
+    # Everything is compiled, the toolchain first, on the runner's cores
+    timeout-minutes: 180
+    defaults:
+      run:
+        working-directory: asus-wl-320ge
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read the release
+        id: release
+        run: echo "version=$(sed -n 's/^OPENWRT_VERSION=//p' .env)" >> "$GITHUB_OUTPUT"
+
+      # The source archives an earlier run downloaded for the same release. The build
+      # checks each against the checksum in OpenWrt's source. GitHub drops a cache that
+      # has not been used for a week.
+      - name: Restore the source downloads
+        uses: actions/cache@v6
+        with:
+          path: asus-wl-320ge/dl
+          key: asus-wl-320ge-dl-${{ steps.release.outputs.version }}-${{ hashFiles('asus-wl-320ge/openwrt.config') }}
+          restore-keys: asus-wl-320ge-dl-${{ steps.release.outputs.version }}-
+
+      - name: Build
+        # The SDK container runs as user 1000, the runner as someone else, so the container
+        # clones the source into openwrt/ itself: git refuses to work in a folder another
+        # user owns. AUTOREMOVE keeps the runner's disk from filling with every package's
+        # build files.
+        env:
+          AUTOREMOVE: 1
+        run: |
+          mkdir -p binaries dl
+          chmod -R a+rwX binaries dl
+          chmod a+rwx .
+          docker compose run --rm builder
+
+      # The built image and the package list, to download and to see what an update brought
+      - name: Keep the image and the manifest
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: asus-wl-320ge-image-and-manifest
+          path: |
+            asus-wl-320ge/binaries/*.trx
+            asus-wl-320ge/binaries/*.manifest
+          if-no-files-found: ignore

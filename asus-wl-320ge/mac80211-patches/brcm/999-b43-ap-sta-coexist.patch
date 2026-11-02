@@ -1,0 +1,231 @@
+From: Marco Martins
+Subject: [b43] same-channel AP+STA for a repeater
+
+A station and an access point on the one radio and channel, sharing the radio's
+address: the hardware acknowledges frames for one address only, so with two the
+second role's frames would go unacknowledged. mac80211 allows the shared
+address with IEEE80211_HW_AP_STA_SAME_ADDR (the patch beside this one). The
+access point owns the hardware whichever comes up first, as it beacons; when the
+owner goes, the one left takes over. With both up, receive promiscuously, as the
+hardware BSSID filter holds one BSSID. Group keys stay in software: their slots
+are shared, and one role's group key would overwrite the other's. A downstream
+patch; it would want review before going upstream.
+---
+--- a/drivers/net/wireless/broadcom/b43/main.c
++++ b/drivers/net/wireless/broadcom/b43/main.c
+@@ -3143,6 +3143,12 @@
+ 	if (dev->dev->core_rev <= 4)
+ 		ctl |= B43_MACCTL_PROMISC;
+ 
++	/* The hardware BSSID filter holds one BSSID: with a station and an
++	 * access point together, receive promiscuously and let mac80211 sort
++	 * the frames per interface. */
++	if (wl->sta_vif && wl->ap_vif)
++		ctl |= B43_MACCTL_PROMISC;
++
+ 	b43_write32(dev, B43_MMIO_MACCTL, ctl);
+ 
+ 	cfp_pretbtt = 2;
+@@ -4123,7 +4129,10 @@
+ 	if (!dev || b43_status(dev) < B43_STAT_STARTED)
+ 		goto out_unlock_mutex;
+ 
+-	B43_WARN_ON(wl->vif != vif);
++	/* The hardware follows one interface; the other of a station and
++	 * access point pair has nothing to apply. */
++	if (wl->vif != vif)
++		goto out_unlock_mutex;
+ 
+ 	if (changed & BSS_CHANGED_BSSID) {
+ 		if (conf->bssid)
+@@ -4196,6 +4205,17 @@
+ 		return -EOPNOTSUPP;
+ 	}
+ 
++	/*
++	 * The group key slots are shared by all interfaces, and a station and
++	 * an access point each have a group key of their own, usually at the
++	 * same index: in hardware one would overwrite the other. Keep group
++	 * keys in software; pairwise keys get a slot each, matched by address.
++	 */
++	if ((vif->type == NL80211_IFTYPE_STATION ||
++	     vif->type == NL80211_IFTYPE_AP) &&
++	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
++		return -EOPNOTSUPP;
++
+ 	mutex_lock(&wl->mutex);
+ 
+ 	dev = wl->current_dev;
+@@ -4976,8 +4996,6 @@
+ 	struct b43_wldev *dev;
+ 	int err = -EOPNOTSUPP;
+ 
+-	/* TODO: allow AP devices to coexist */
+-
+ 	if (vif->type != NL80211_IFTYPE_AP &&
+ 	    vif->type != NL80211_IFTYPE_MESH_POINT &&
+ 	    vif->type != NL80211_IFTYPE_STATION &&
+@@ -4985,14 +5003,39 @@
+ 		return -EOPNOTSUPP;
+ 
+ 	mutex_lock(&wl->mutex);
+-	if (wl->operating)
+-		goto out_mutex_unlock;
++	if (wl->operating) {
++		/* A second interface: a station and an access point together,
++		 * for a repeater. The hardware acknowledges one address only,
++		 * so they have to share it. */
++		if (!ether_addr_equal(vif->addr, wl->mac_addr)) {
++			b43warn(wl, "A second interface has to use the address %pM\n",
++				wl->mac_addr);
++			goto out_mutex_unlock;
++		}
++		if (vif->type == NL80211_IFTYPE_STATION &&
++		    wl->ap_vif && !wl->sta_vif) {
++			/* The access point keeps the hardware */
++			wl->sta_vif = vif;
++			b43_adjust_opmode(wl->current_dev);
++			err = 0;
++			goto out_mutex_unlock;
++		}
++		if (vif->type != NL80211_IFTYPE_AP ||
++		    !wl->sta_vif || wl->ap_vif)
++			goto out_mutex_unlock;
++		/* An access point takes the hardware over from the station:
++		 * it has to beacon, and the hardware runs in one mode. */
++	}
+ 
+ 	b43dbg(wl, "Adding Interface type %d\n", vif->type);
+ 
+ 	dev = wl->current_dev;
+ 	wl->operating = true;
+ 	wl->vif = vif;
++	if (vif->type == NL80211_IFTYPE_STATION)
++		wl->sta_vif = vif;
++	else if (vif->type == NL80211_IFTYPE_AP)
++		wl->ap_vif = vif;
+ 	wl->if_type = vif->type;
+ 	memcpy(wl->mac_addr, vif->addr, ETH_ALEN);
+ 
+@@ -5016,22 +5059,45 @@
+ {
+ 	struct b43_wl *wl = hw_to_b43_wl(hw);
+ 	struct b43_wldev *dev = wl->current_dev;
++	struct ieee80211_vif *other;
+ 
+ 	b43dbg(wl, "Removing Interface type %d\n", vif->type);
+ 
+ 	mutex_lock(&wl->mutex);
+ 
+ 	B43_WARN_ON(!wl->operating);
+-	B43_WARN_ON(wl->vif != vif);
+-	wl->vif = NULL;
+ 
+-	wl->operating = false;
++	if (wl->sta_vif == vif)
++		wl->sta_vif = NULL;
++	if (wl->ap_vif == vif)
++		wl->ap_vif = NULL;
++	/* Of a station and access point pair, the one left */
++	other = wl->sta_vif ? wl->sta_vif : wl->ap_vif;
++
++	if (wl->vif != vif) {
++		/* The other one keeps the hardware; stop the promiscuous mode */
++		b43_adjust_opmode(dev);
++		mutex_unlock(&wl->mutex);
++		return;
++	}
++
++	wl->vif = other;
++	if (other) {
++		/* The one left takes the hardware over, at the same address */
++		wl->if_type = other->type;
++	} else {
++		wl->operating = false;
++		eth_zero_addr(wl->mac_addr);
++	}
+ 
+ 	b43_adjust_opmode(dev);
+-	eth_zero_addr(wl->mac_addr);
++	b43_set_pretbtt(dev);
+ 	b43_upload_card_macaddress(dev);
+ 
+ 	mutex_unlock(&wl->mutex);
++
++	if (other)
++		b43_op_bss_info_changed(hw, other, &other->bss_conf, ~0);
+ }
+ 
+ static int b43_op_start(struct ieee80211_hw *hw)
+@@ -5130,9 +5196,7 @@
+ 			      enum sta_notify_cmd notify_cmd,
+ 			      struct ieee80211_sta *sta)
+ {
+-	struct b43_wl *wl = hw_to_b43_wl(hw);
+-
+-	B43_WARN_ON(!vif || wl->vif != vif);
++	B43_WARN_ON(!vif);
+ }
+ 
+ static void b43_op_sw_scan_start_notifier(struct ieee80211_hw *hw,
+@@ -5619,6 +5683,31 @@
+ }
+ #endif
+ 
++/* One radio on one channel: a station (or ad-hoc) interface and an access
++ * point at most, together, for a repeater. No mesh: without mesh support
++ * mac80211 drops it from the interface modes, and a combination naming it
++ * would be refused. */
++static const struct ieee80211_iface_limit b43_iface_limits[] = {
++	{
++		.max = 1,
++		.types = BIT(NL80211_IFTYPE_STATION) |
++			 BIT(NL80211_IFTYPE_ADHOC),
++	},
++	{
++		.max = 1,
++		.types = BIT(NL80211_IFTYPE_AP),
++	},
++};
++
++static const struct ieee80211_iface_combination b43_iface_combinations[] = {
++	{
++		.limits = b43_iface_limits,
++		.n_limits = ARRAY_SIZE(b43_iface_limits),
++		.max_interfaces = 2,
++		.num_different_channels = 1,
++	},
++};
++
+ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
+ {
+ 	struct ssb_sprom *sprom = dev->bus_sprom;
+@@ -5638,11 +5727,14 @@
+ 	ieee80211_hw_set(hw, RX_INCLUDES_FCS);
+ 	ieee80211_hw_set(hw, SIGNAL_DBM);
+ 	ieee80211_hw_set(hw, MFP_CAPABLE);
++	ieee80211_hw_set(hw, AP_STA_SAME_ADDR);
+ 	hw->wiphy->interface_modes =
+ 		BIT(NL80211_IFTYPE_AP) |
+ 		BIT(NL80211_IFTYPE_MESH_POINT) |
+ 		BIT(NL80211_IFTYPE_STATION) |
+ 		BIT(NL80211_IFTYPE_ADHOC);
++	hw->wiphy->iface_combinations = b43_iface_combinations;
++	hw->wiphy->n_iface_combinations = ARRAY_SIZE(b43_iface_combinations);
+ 
+ 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+ 
+--- a/drivers/net/wireless/broadcom/b43/b43.h
++++ b/drivers/net/wireless/broadcom/b43/b43.h
+@@ -919,6 +919,11 @@
+ 	 */
+ 
+ 	struct ieee80211_vif *vif;
++	/* A station and an access point on the one radio, for a repeater: vif
++	 * above is the one the hardware follows, the access point when there is
++	 * one. Both share one address, the only one the hardware acknowledges. */
++	struct ieee80211_vif *sta_vif;
++	struct ieee80211_vif *ap_vif;
+ 	/* The MAC address of the operating interface. */
+ 	u8 mac_addr[ETH_ALEN];
+ 	/* Current BSSID */

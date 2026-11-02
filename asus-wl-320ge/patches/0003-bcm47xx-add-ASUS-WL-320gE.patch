@@ -1,0 +1,65 @@
+From: Marco Martins
+Subject: bcm47xx: add ASUS WL-320gE
+
+The WL-320gP's board with a single Ethernet port, without PoE. Its stock firmware
+only takes an image with its own product ID. The image has no marker for a settings
+partition after the root file system, as the build keeps no settings on the flash.
+Also keeps PCI-dependent packages such as b43 available when the kernel is built
+without PCI, as the WL-320gE can be.
+---
+diff --git a/target/linux/bcm47xx/image/Makefile b/target/linux/bcm47xx/image/Makefile
+index 4341a232cf..5459eb159f 100644
+--- a/target/linux/bcm47xx/image/Makefile
++++ b/target/linux/bcm47xx/image/Makefile
+@@ -59,6 +59,18 @@ define Build/trx-with-loader
+ 	mv $@.new $@
+ endef
+ 
++# Without the marker for a settings partition after the root file system, for images
++# that keep no settings on the flash. Padded to a 64 KB flash block so asustrx can stamp its tail.
++define Build/trx-with-loader-stateless
++	$(STAGING_DIR_HOST)/bin/trx \
++		-m 33554432 \
++		-o $@.new \
++		-f $(KDIR)/loader.gz \
++		-f $(IMAGE_KERNEL) \
++		-a 1024 -f $@ -a 0x10000
++	mv $@.new $@
++endef
++
+ define Build/trx-v2-with-loader
+ 	$(STAGING_DIR_HOST)/bin/trx \
+ 		-2 \
+diff --git a/target/linux/bcm47xx/image/legacy.mk b/target/linux/bcm47xx/image/legacy.mk
+index 3c682d37e7..80c19238ba 100644
+--- a/target/linux/bcm47xx/image/legacy.mk
++++ b/target/linux/bcm47xx/image/legacy.mk
+@@ -20,6 +20,16 @@ define Device/asus_wl-320gp
+ endef
+ TARGET_DEVICES += asus_wl-320gp
+ 
++define Device/asus_wl-320ge
++  DEVICE_MODEL := WL-320gE
++  DEVICE_PACKAGES := kmod-b43
++  $(Device/asus)
++  IMAGE/trx := append-rootfs | trx-with-loader-stateless | asus-trx
++  PRODUCTID := "WL320gE     "
++  DEFAULT := n
++endef
++TARGET_DEVICES += asus_wl-320ge
++
+ define Device/asus_wl-330ge
+   DEVICE_MODEL := WL-330gE
+   DEVICE_PACKAGES := kmod-b43
+diff --git a/target/linux/bcm47xx/legacy/target.mk b/target/linux/bcm47xx/legacy/target.mk
+index ac89d798ad..008418ba00 100644
+--- a/target/linux/bcm47xx/legacy/target.mk
++++ b/target/linux/bcm47xx/legacy/target.mk
+@@ -1,4 +1,7 @@
+ FEATURES += low_mem pcmcia small_flash
++# PCI support for packages even without PCI in the kernel: b43 reaches the Wi-Fi of
++# BCM535x SoCs over the chip's own bus
++FEATURES += pci
+ BOARDNAME:=Legacy (BMIPS3300)
+ 
+ DEFAULT_PACKAGES += wpad-basic-mbedtls

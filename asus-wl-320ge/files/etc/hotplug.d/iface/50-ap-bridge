@@ -1,0 +1,7 @@
+# The access point back in the LAN bridge whenever netifd brings the LAN up. hostapd puts it
+# there as it starts, but netifd skips Wi-Fi interfaces its own Wi-Fi scripts did not set up,
+# and this image does without them: a netifd that restarts makes the bridge without it, and
+# the access point's clients reach nothing. Handed to netifd as an external device, it is one
+# of netifd's bridge ports, and netifd leaves its link to hostapd.
+[ "$ACTION" = ifup ] && [ "$INTERFACE" = lan ] && [ -e /sys/class/net/phy0-ap0 ] || exit 0
+ubus call network.interface.lan add_device '{ "name": "phy0-ap0", "link-ext": true }'
