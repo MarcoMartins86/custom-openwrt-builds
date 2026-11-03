@@ -1,8 +1,8 @@
-odyssey-x86j4125-imagebuilder/binaries/
-odyssey-x86j4125-imagebuilder/dl/
-odyssey-x86j4125-imagebuilder/kmods/out/
+seeed-odyssey-x86j4125/binaries/
+seeed-odyssey-x86j4125/dl/
+seeed-odyssey-x86j4125/kmods/out/
 .claude
-odyssey-x86j4125-imagebuilder/private/
+seeed-odyssey-x86j4125/private/
 asus-wl-320ge/binaries/
 asus-wl-320ge/dl/
 asus-wl-320ge/openwrt/

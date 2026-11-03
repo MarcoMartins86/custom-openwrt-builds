@@ -1,10 +1,11 @@
-# Builds the image with the public settings in .env and boots it in QEMU for the smoke
-# test, on every pull request and every change to main. It uses no secrets: the image to
-# flash, with the settings in private/.env, is built on your own machine.
+# Builds the Seeed ODYSSEY-X86J4125 image with the public settings in .env and boots it in
+# QEMU for the smoke test, on every pull request and every change to main. It uses no
+# secrets: the image to flash, with the settings in private/.env, is built on your own
+# machine.
 #
 # Once a week it also builds main and opens an issue when the release's packages have
 # changed since the previous build there, as the router only gets them with a flash.
-name: Build and test
+name: Seeed ODYSSEY-X86J4125
 
 on:
   pull_request:
@@ -30,7 +31,7 @@ jobs:
     timeout-minutes: 45
     defaults:
       run:
-        working-directory: odyssey-x86j4125-imagebuilder
+        working-directory: seeed-odyssey-x86j4125
     steps:
       - uses: actions/checkout@v7
 
@@ -44,8 +45,8 @@ jobs:
       - name: Restore the package downloads
         uses: actions/cache@v6
         with:
-          path: odyssey-x86j4125-imagebuilder/dl
-          key: dl-${{ steps.release.outputs.version }}-${{ hashFiles('odyssey-x86j4125-imagebuilder/packages.txt') }}
+          path: seeed-odyssey-x86j4125/dl
+          key: dl-${{ steps.release.outputs.version }}-${{ hashFiles('seeed-odyssey-x86j4125/packages.txt') }}
           restore-keys: dl-${{ steps.release.outputs.version }}-
 
       - name: Build
@@ -78,8 +79,8 @@ jobs:
         with:
           name: manifest-and-console
           path: |
-            odyssey-x86j4125-imagebuilder/binaries/*.manifest
-            odyssey-x86j4125-imagebuilder/test/serial.log
+            seeed-odyssey-x86j4125/binaries/*.manifest
+            seeed-odyssey-x86j4125/test/serial.log
           if-no-files-found: ignore
 
   # Weekly, or when started by hand: what changed in the release's packages since the
@@ -109,7 +110,7 @@ jobs:
             gh api "repos/$GH_REPO/actions/artifacts/$id/zip" > "$2.zip"
             unzip -p "$2.zip" 'binaries/*.manifest' > "$2"
           }
-          previous="$(gh run list --workflow build.yml --branch main --status success --limit 10 \
+          previous="$(gh run list --workflow seeed-odyssey-x86j4125.yml --branch main --status success --limit 10 \
             --json databaseId --jq "[.[] | select(.databaseId != $GITHUB_RUN_ID)][0].databaseId // empty")"
           if [ -z "$previous" ] || ! manifest "$previous" before.manifest; then
             echo "No earlier build on main to compare with"
@@ -121,7 +122,7 @@ jobs:
             echo "No package changed since run $previous"
             exit 0
           fi
-          release="$(sed -n 's/^OPENWRT_VERSION=//p' odyssey-x86j4125-imagebuilder/.env)"
+          release="$(sed -n 's/^OPENWRT_VERSION=//p' seeed-odyssey-x86j4125/.env)"
           {
             echo "Packages of OpenWrt $release changed between [an earlier build]($RUN_URL/$previous) and [this one]($RUN_URL/$GITHUB_RUN_ID), which passed the smoke test. A build and a flash bring them to the router."
             echo
