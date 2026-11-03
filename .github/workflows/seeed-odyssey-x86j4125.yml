@@ -4,7 +4,7 @@
 # built on your own machine.
 #
 # Once a week it also builds main and opens an issue when the release's packages have
-# changed since the previous build there, as the router only gets them with a flash.
+# changed since the previous weekly build there, as the router only gets them with a flash.
 name: Seeed ODYSSEY-X86J4125
 
 on:
@@ -90,8 +90,9 @@ jobs:
           if-no-files-found: ignore
 
   # Weekly, or when started by hand: what changed in the release's packages since the
-  # last good build on main. The changes go into the open package-updates issue, or
-  # into a new one; closing it after a flash starts the next one.
+  # last good run of this job on main. A build from a push doesn't count, as it would hide
+  # what it picked up. The changes go into the open package-updates issue, or into a new
+  # one; closing it after a flash starts the next one.
   package-changes:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     needs: build
@@ -107,7 +108,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Compare with the previous build on main
+      - name: Compare with the previous weekly build on main
         run: |
           manifest() {
             id="$(gh api "repos/$GH_REPO/actions/runs/$1/artifacts" \
@@ -116,10 +117,10 @@ jobs:
             gh api "repos/$GH_REPO/actions/artifacts/$id/zip" > "$2.zip"
             unzip -p "$2.zip" 'binaries/*.manifest' > "$2"
           }
-          previous="$(gh run list --workflow seeed-odyssey-x86j4125.yml --branch main --status success --limit 10 \
-            --json databaseId --jq "[.[] | select(.databaseId != $GITHUB_RUN_ID)][0].databaseId // empty")"
+          previous="$(gh run list --workflow seeed-odyssey-x86j4125.yml --branch main --status success --limit 100 \
+            --json databaseId,event --jq "[.[] | select(.event != \"push\" and .databaseId != $GITHUB_RUN_ID)][0].databaseId // empty")"
           if [ -z "$previous" ] || ! manifest "$previous" before.manifest; then
-            echo "No earlier build on main to compare with"
+            echo "No earlier weekly build on main to compare with"
             exit 0
           fi
           manifest "$GITHUB_RUN_ID" now.manifest
