@@ -68,10 +68,17 @@ EOI
 # Talon anti-bot SDK, under on.epicgames.com, and the Statsig feature flags at
 # featureassets.org. Without them the purchase page cannot load its bot check or its flags
 # and the "Buy" button does nothing. Allow both so a purchase goes through; Epic's telemetry
-# hosts (tracking.epicgames.com and the rest) stay blocked. Appended, so the package's own
-# allowlist entries and any added by hand stay.
+# hosts (tracking.epicgames.com and the rest) stay blocked.
+#
+# Twilio SendGrid's web app, to manage an account there: a privacy feed (divested) blocks
+# all of sendgrid.com, where the app (app.sendgrid.com) and its files are. Allow it. The
+# hosts under sendgrid.net, which carry the links, images and open and click counting of
+# the mail SendGrid sends, stay blocked, as do Twilio's own telemetry hosts
+# (eventgw.twilio.com and the rest).
+#
+# Appended, so the package's own allowlist entries and any added by hand stay.
 ALLOWLIST="/etc/adblock/adblock.allowlist"
-for domain in on.epicgames.com featureassets.org; do
+for domain in on.epicgames.com featureassets.org sendgrid.com; do
 	grep -qxF "${domain}" "${ALLOWLIST}" 2> /dev/null || echo "${domain}" >> "${ALLOWLIST}"
 done
 
