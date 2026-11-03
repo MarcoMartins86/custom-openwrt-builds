@@ -1,4 +1,4 @@
-# odyssey-x86j4125-imagebuilder
+# seeed-odyssey-x86j4125
 
 An OpenWrt 25.12 image that turns a [Seeed ODYSSEY-X86J4125](https://wiki.seeedstudio.com/ODYSSEY-X86J4105/)
 into a home router. It is built with OpenWrt's
@@ -270,7 +270,8 @@ and LuCI to port 8080 on `127.0.0.1`.
 ## Checks and updates
 
 Every pull request, and every change to `main`, is built on GitHub with the settings in
-`.env` and booted for `test/smoke.sh` ([build.yml](../.github/workflows/build.yml)). That build
+`.env` and booted for `test/smoke.sh`
+([seeed-odyssey-x86j4125.yml](../.github/workflows/seeed-odyssey-x86j4125.yml)). That build
 uses no secrets, so its image has none of the private settings; the image to flash is built
 on your own machine as above. The run keeps the image's package list and the console of the
 test boot.

@@ -8,8 +8,8 @@
       "customType": "regex",
       "description": "The OpenWrt release in the build's .env and README. It names the ImageBuilder container, so a release only counts once its container is published.",
       "managerFilePatterns": [
-        "/^odyssey-x86j4125-imagebuilder/\\.env$/",
-        "/^odyssey-x86j4125-imagebuilder/README\\.md$/"
+        "/^seeed-odyssey-x86j4125/\\.env$/",
+        "/^seeed-odyssey-x86j4125/README\\.md$/"
       ],
       "matchStrings": [
         "OPENWRT_VERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)",
@@ -40,7 +40,7 @@
       "customType": "regex",
       "description": "Packages downloaded from GitHub releases in extra-packages.txt",
       "managerFilePatterns": [
-        "/^odyssey-x86j4125-imagebuilder/extra-packages\\.txt$/"
+        "/^seeed-odyssey-x86j4125/extra-packages\\.txt$/"
       ],
       "matchStrings": [
         "https://github\\.com/(?<depName>[^/\\s]+/[^/\\s]+)/releases/download/(?<currentValue>[^/\\s]+)/"
@@ -51,7 +51,7 @@
       "customType": "regex",
       "description": "pigz, which build.sh builds from its source where it is missing",
       "managerFilePatterns": [
-        "/^odyssey-x86j4125-imagebuilder/build\\.sh$/"
+        "/^seeed-odyssey-x86j4125/build\\.sh$/"
       ],
       "matchStrings": [
         "PIGZ_VERSION=(?<currentValue>\\S+)"
@@ -65,7 +65,7 @@
     {
       "description": "A new release of an extra package also changes its file names and checksums, which Renovate cannot fill in. It waits on the dependency dashboard until its pull request is asked for there.",
       "matchFileNames": [
-        "odyssey-x86j4125-imagebuilder/extra-packages.txt"
+        "seeed-odyssey-x86j4125/extra-packages.txt"
       ],
       "dependencyDashboardApproval": true,
       "prBodyNotes": [
