@@ -7,9 +7,11 @@ second role's frames would go unacknowledged. mac80211 allows the shared
 address with IEEE80211_HW_AP_STA_SAME_ADDR (the patch beside this one). The
 access point owns the hardware whichever comes up first, as it beacons; when the
 owner goes, the one left takes over. With both up, receive promiscuously, as the
-hardware BSSID filter holds one BSSID. Group keys stay in software: their slots
-are shared, and one role's group key would overwrite the other's. A downstream
-patch; it would want review before going upstream.
+hardware BSSID filter holds one BSSID. The four group key slots are found by key
+index and shared, so the station's group key would overwrite the access point's:
+an access point only sends with its CCMP group key, and a frame sent names its
+key slot, so its group key takes a pairwise slot, with no address to match. A
+downstream patch; it would want review before going upstream.
 ---
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
@@ -38,25 +40,27 @@ patch; it would want review before going upstream.
  
  	if (changed & BSS_CHANGED_BSSID) {
  		if (conf->bssid)
-@@ -4196,6 +4205,17 @@
- 		return -EOPNOTSUPP;
- 	}
- 
-+	/*
-+	 * The group key slots are shared by all interfaces, and a station and
-+	 * an access point each have a group key of their own, usually at the
-+	 * same index: in hardware one would overwrite the other. Keep group
-+	 * keys in software; pairwise keys get a slot each, matched by address.
-+	 */
-+	if ((vif->type == NL80211_IFTYPE_STATION ||
-+	     vif->type == NL80211_IFTYPE_AP) &&
-+	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
-+		return -EOPNOTSUPP;
-+
- 	mutex_lock(&wl->mutex);
- 
- 	dev = wl->current_dev;
-@@ -4976,8 +4996,6 @@
+@@ -4251,6 +4260,19 @@
+ 			err = b43_key_write(dev, -1, algorithm,
+ 					    key->key, key->keylen,
+ 					    sta->addr, key);
++		} else if (vif->type == NL80211_IFTYPE_AP &&
++			   algorithm == B43_SEC_ALGO_AES) {
++			/*
++			 * The group key slots are found by key index and shared
++			 * by all interfaces, so a station's group key would
++			 * overwrite an access point's at the same index. An
++			 * access point only sends with its CCMP group key (WEP
++			 * keys decrypt what stations send as well), and a frame
++			 * sent names its key slot: give it a pairwise slot, with
++			 * no address for a received frame to match.
++			 */
++			err = b43_key_write(dev, -1, algorithm,
++					    key->key, key->keylen, NULL, key);
+ 		} else {
+ 			/* Group key */
+ 			err = b43_key_write(dev, index, algorithm,
+@@ -4976,8 +4998,6 @@
  	struct b43_wldev *dev;
  	int err = -EOPNOTSUPP;
  
@@ -65,7 +69,7 @@ patch; it would want review before going upstream.
  	if (vif->type != NL80211_IFTYPE_AP &&
  	    vif->type != NL80211_IFTYPE_MESH_POINT &&
  	    vif->type != NL80211_IFTYPE_STATION &&
-@@ -4985,14 +5003,39 @@
+@@ -4985,14 +5005,39 @@
  		return -EOPNOTSUPP;
  
  	mutex_lock(&wl->mutex);
@@ -107,7 +111,7 @@ patch; it would want review before going upstream.
  	wl->if_type = vif->type;
  	memcpy(wl->mac_addr, vif->addr, ETH_ALEN);
  
-@@ -5016,22 +5059,45 @@
+@@ -5016,22 +5061,45 @@
  {
  	struct b43_wl *wl = hw_to_b43_wl(hw);
  	struct b43_wldev *dev = wl->current_dev;
@@ -157,7 +161,7 @@ patch; it would want review before going upstream.
  }
  
  static int b43_op_start(struct ieee80211_hw *hw)
-@@ -5130,9 +5196,7 @@
+@@ -5130,9 +5198,7 @@
  			      enum sta_notify_cmd notify_cmd,
  			      struct ieee80211_sta *sta)
  {
@@ -168,7 +172,7 @@ patch; it would want review before going upstream.
  }
  
  static void b43_op_sw_scan_start_notifier(struct ieee80211_hw *hw,
-@@ -5619,6 +5683,31 @@
+@@ -5619,6 +5685,31 @@
  }
  #endif
  
@@ -200,7 +204,7 @@ patch; it would want review before going upstream.
  static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
  {
  	struct ssb_sprom *sprom = dev->bus_sprom;
-@@ -5638,11 +5727,14 @@
+@@ -5638,11 +5729,14 @@
  	ieee80211_hw_set(hw, RX_INCLUDES_FCS);
  	ieee80211_hw_set(hw, SIGNAL_DBM);
  	ieee80211_hw_set(hw, MFP_CAPABLE);

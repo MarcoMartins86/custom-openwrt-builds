@@ -1,0 +1,55 @@
+From: Marco Martins
+Subject: b43: start the beacons at the next TBTT from the TSF
+
+b43_set_beacon_int() sets the first TBTT to one beacon interval, as if
+the TSF were near zero. The hardware compares it with the low 32 bits of
+the TSF. While those are less than 2^31 us past it, it moves it on by
+whole intervals until it is ahead. Further past, it takes it for a time
+still to come and sends no beacon at all: on a BCM5352 the start stayed
+at one interval while the TSF ran on. Without beacons there are no
+DTIMs, so the broadcasts b43 holds for stations in power save are never
+sent. The multicast ring fills, and b43 stops the mac80211 queue of the
+frame that filled it, best effort for broadcasts, so all best-effort
+traffic stops: a station still associates, but gets no DHCP lease.
+
+The TSF is not reset when an interface comes up. It keeps counting for
+as long as the hardware runs, and a station interface on the same radio
+synchronises it to its AP's, which can be any value. So an access point
+brought up in the second half of any 2^32 us (71.6 minutes) of the TSF
+sends no beacons, as after a restart beside a station interface.
+
+Where the hardware does catch up, the beacons go out at multiples of
+the interval in the low 32 bits only. 2^32 us is not a multiple of an
+interval (it is 4 TU more than one of 100 TU), so once the TSF is past
+2^32 us, they are off the TBTTs, where the TSF is a multiple of the
+interval, by the upper 32 bits of the TSF times 4 TU, modulo the
+interval. Stations in power save wake up at the TBTTs for the beacon.
+
+Start at the next TBTT from the TSF instead, as ath5k does.
+---
+--- a/drivers/net/wireless/broadcom/b43/main.c
++++ b/drivers/net/wireless/broadcom/b43/main.c
+@@ -1856,10 +1856,22 @@
+
+ static void b43_set_beacon_int(struct b43_wldev *dev, u16 beacon_int)
+ {
++	u64 tsf;
++	u32 rem;
++
+ 	b43_time_lock(dev);
+ 	if (dev->dev->core_rev >= 3) {
++		/* Start at the next TBTT, the next multiple of the beacon
++		 * interval on the TSF. The TSF need not be near zero: it keeps
++		 * counting while the interface is down, and a station interface
++		 * on the radio synchronises it to its AP. The hardware sends no
++		 * beacon for a start more than 2^31 us behind the TSF. */
++		b43_tsf_read(dev, &tsf);
++		tsf >>= 10;
++		div_u64_rem(tsf, beacon_int, &rem);
++		tsf += beacon_int - rem;
+ 		b43_write32(dev, B43_MMIO_TSF_CFP_REP, (beacon_int << 16));
+-		b43_write32(dev, B43_MMIO_TSF_CFP_START, (beacon_int << 10));
++		b43_write32(dev, B43_MMIO_TSF_CFP_START, lower_32_bits(tsf << 10));
+ 	} else {
+ 		b43_write16(dev, 0x606, (beacon_int >> 6));
+ 		b43_write16(dev, 0x610, beacon_int);
