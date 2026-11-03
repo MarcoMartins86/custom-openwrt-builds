@@ -290,7 +290,7 @@ needs the [Renovate app](https://github.com/apps/renovate) installed on the repo
 
 Within a release OpenWrt keeps updating packages, security fixes among them, and the router
 only gets them with a new image. So every Monday the same build and test run on `main`, and
-when its package list differs from the previous good build there, an issue labelled
+when its package list differs from the previous good weekly build there, an issue labelled
 `package-updates` lists what changed; while one is open, later changes are added to it.
 Close it once the router is flashed. GitHub pauses scheduled runs in a repository that has
 seen no activity for 60 days; Actions lets you switch them on again.
