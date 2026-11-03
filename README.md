@@ -11,7 +11,7 @@ on how to build, test and flash it.
 
 Shared by the builds:
 
-- **[.github/workflows](.github/workflows):** builds and tests every pull request and every
-  change to `main`.
+- **[.github/workflows](.github/workflows):** one workflow per build, which builds and tests
+  every pull request and every change to `main` that touches that build's folder.
 - **[renovate.json](renovate.json):** [Renovate](https://docs.renovatebot.com) watches the
   versions a build depends on and opens a pull request for each new one.
