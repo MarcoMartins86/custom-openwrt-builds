@@ -269,8 +269,8 @@ and LuCI to port 8080 on `127.0.0.1`.
 
 ## Checks and updates
 
-Every pull request, and every change to `main`, is built on GitHub with the settings in
-`.env` and booted for `test/smoke.sh`
+Every pull request, and every change to `main`, that touches this folder or its workflow is
+built on GitHub with the settings in `.env` and booted for `test/smoke.sh`
 ([seeed-odyssey-x86j4125.yml](../.github/workflows/seeed-odyssey-x86j4125.yml)). That build
 uses no secrets, so its image has none of the private settings; the image to flash is built
 on your own machine as above. The run keeps the image's package list and the console of the

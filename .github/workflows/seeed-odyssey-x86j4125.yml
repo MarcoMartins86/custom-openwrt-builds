@@ -1,7 +1,7 @@
 # Builds the Seeed ODYSSEY-X86J4125 image with the public settings in .env and boots it in
-# QEMU for the smoke test, on every pull request and every change to main. It uses no
-# secrets: the image to flash, with the settings in private/.env, is built on your own
-# machine.
+# QEMU for the smoke test, on every pull request and every change to main that touches the
+# build. It uses no secrets: the image to flash, with the settings in private/.env, is
+# built on your own machine.
 #
 # Once a week it also builds main and opens an issue when the release's packages have
 # changed since the previous build there, as the router only gets them with a flash.
@@ -9,8 +9,14 @@ name: Seeed ODYSSEY-X86J4125
 
 on:
   pull_request:
+    paths:
+      - "seeed-odyssey-x86j4125/**"
+      - ".github/workflows/seeed-odyssey-x86j4125.yml"
   push:
     branches: [main]
+    paths:
+      - "seeed-odyssey-x86j4125/**"
+      - ".github/workflows/seeed-odyssey-x86j4125.yml"
   schedule:
     - cron: "17 5 * * 1"
   workflow_dispatch:
