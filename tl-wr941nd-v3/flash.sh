@@ -59,7 +59,9 @@ router() {
 # password, and only once. 19.07's SSH server only offers an RSA host key signed with SHA-1,
 # which OpenSSH no longer accepts unless asked to.
 MASTER="$(mktemp -d)/ssh"
-trap 'ssh -o ControlPath="${MASTER}" -O exit "root@${ROUTER}" > /dev/null 2>&1; rm -rf "${MASTER%/ssh}"' EXIT
+# After a flash the connection is gone, and a command failing in here would end the script
+# with its status
+trap 'ssh -o ControlPath="${MASTER}" -O exit "root@${ROUTER}" > /dev/null 2>&1 || true; rm -rf "${MASTER%/ssh}"' EXIT
 ssh -p "${PORT}" -fN -o ControlMaster=yes -o ControlPath="${MASTER}" -o ControlPersist=yes \
 	-o ConnectTimeout=8 -o StrictHostKeyChecking=accept-new -o HostKeyAlgorithms=+ssh-rsa \
 	-o ServerAliveInterval=2 -o ServerAliveCountMax=3 \
