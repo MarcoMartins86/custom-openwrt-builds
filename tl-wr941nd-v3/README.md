@@ -37,7 +37,7 @@ The inputs are all in this folder:
 | `openwrt.config` | OpenWrt's build configuration, as far as it differs from the device's defaults: the packages left out, and the options of the kernel, Wi-Fi, SSH and command-line tools |
 | `kernel.config` | Kernel options on top of those OpenWrt builds the device's kernel with |
 | `patches/` | Changes to OpenWrt's source: IPv6 made optional again |
-| `kernel-patches/` | Fixes for the kernel, added to OpenWrt's own: without the phylink one, 25.12.6 sets up none of the switch's ports |
+| `kernel-patches/` | Fixes for the kernel, added to OpenWrt's own: without the phylink one, 25.12.6 sets up none of the switch's ports; without the bridge one, netifd makes no bridge in this kernel |
 | `files/` | Files copied into the image, mainly the first-boot scripts |
 | `private/files/` | The same, for files that should not be public, such as the SSH keys allowed in. Not in the repo |
 
@@ -218,9 +218,10 @@ Both tests run after `build.sh` and exit with 0 when every check passes:
 They need Docker, with QEMU's user mode registered for MIPS programs, and QEMU's MIPS boards;
 on Ubuntu: `sudo apt-get install qemu-user-binfmt qemu-system-mips`.
 
-What only the device can show: that its kernel, switch and Wi-Fi driver work. With the
-switch's ports missing, as on the device flashed with 25.12.6, the Wi-Fi client still
-reaches the access point here, where it did not on the device.
+What only the device can show: that its kernel, switch and Wi-Fi driver work, and what its
+kernel does differently from OpenWrt's Malta kernel, such as making the bridge (see
+[Good to know](#good-to-know)). That is why the Wi-Fi client here reaches the access point
+without the switch's ports, where it did not on the device flashed with 25.12.6.
 
 ## Checks and updates
 
@@ -289,8 +290,14 @@ new release.
   failsafe reaches the access point. 25.12.5 does not have that patch.
   `kernel-patches/737-08-…` restores the check phylink had before; QEMU's Malta board with
   the kernel's test switch, which takes the same path, shows the ports failing without it
-  and coming up with it. The same patch breaks Marvell's 88E6171
+  and coming up with it, and on the device all five come up with it. The same patch breaks
+  Marvell's 88E6171
   ([openwrt#26029](https://github.com/openwrt/openwrt/issues/26029)).
+- **The bridge**: without the kernel's VLAN filtering, netifd makes no bridge unless the
+  kernel has `kernel-patches/999-net-bridge-accept-vlan-filtering-off.patch`: netifd asks
+  for filtering off on every bridge it makes, and such a kernel refused even that. The access
+  point then has no address, and its Wi-Fi accepts clients that can reach nothing. The Malta
+  tests miss this, as they boot OpenWrt's Malta kernel, which has VLAN filtering.
 - **No LuCI**: there is no room for it. Settings are changed over SSH with `uci`, and are
   lost with the next flash unless they go into the image.
 - **No package manager**: everything comes with a new image.

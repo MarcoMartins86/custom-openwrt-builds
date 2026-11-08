@@ -1,0 +1,18 @@
+From: Marco Martins
+Subject: net: bridge: accept turning VLAN filtering off when it is not built
+
+netifd sets IFLA_BR_VLAN_FILTERING on every bridge it creates, also to 0.
+Without CONFIG_BRIDGE_VLAN_FILTERING the request failed with -EOPNOTSUPP,
+so no bridge could be created: switching off what cannot be on is a no-op.
+---
+--- a/net/bridge/br_private.h
++++ b/net/bridge/br_private.h
+@@ -1741,7 +1741,7 @@
+ 					unsigned long val,
+ 					struct netlink_ext_ack *extack)
+ {
+-	return -EOPNOTSUPP;
++	return val ? -EOPNOTSUPP : 0;
+ }
+ 
+ static inline int nbp_get_num_vlan_infos(struct net_bridge_port *p,
