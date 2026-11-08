@@ -280,7 +280,31 @@ From TP-Link's firmware, flash `openwrt-*-squashfs-factory.bin` in its web inter
 A flash that does not boot can only be recovered over the serial port, with a 3.3 V USB
 serial adapter on the board's header and the boot loader's TFTP; see the
 [device page](https://openwrt.org/toh/tp-link/tl-wr941nd). Have one at hand before flashing a
-new release.
+new release. What worked on a v3:
+
+1. The header is `P1`, from the square pad: TX, RX, GND, 3.3 V. Wire the adapter's RXD to
+   TX, its TXD to RX and GND to GND, at 3.3 V, and leave 3.3 V unconnected. The two small
+   pads under TX have to be shorted, as the device page shows. 115200 baud, 8N1.
+2. The boot loader, U-Boot 1.1.4, waits one second for a key after "Autobooting in 1
+   seconds"; typing `tpl` repeatedly from power-on stops it at `ar7100>`. Nothing set there
+   is saved.
+3. Connect this machine to a LAN port, give it an address (here `192.168.3.50`) and run a
+   TFTP server with the factory image in it, then:
+
+   ```
+   setenv ipaddr 192.168.3.10
+   setenv serverip 192.168.3.50
+   tftpboot 0x81000000 openwrt-…-squashfs-factory.bin
+   crc32 0x81000000 0x3c0000
+   erase 0xbf020000 0xbf3effff
+   cp.b 0x81000000 0xbf020000 0x3c0000
+   crc32 0xbf020000 0x3c0000
+   bootm 0xbf020000
+   ```
+
+   Both checksums have to match the image's CRC32 before going on. The erase covers the
+   firmware partition alone; the last 64 KB of the flash hold the radio's calibration data,
+   and the first 128 KB the boot loader.
 
 ## Good to know
 
