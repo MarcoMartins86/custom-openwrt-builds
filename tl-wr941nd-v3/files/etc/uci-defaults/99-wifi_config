@@ -1,0 +1,21 @@
+# The Wi-Fi network, bridged with the ports: WPA2 with the password from private/.env,
+# switched off when the image was built without one
+. /etc/build.env
+# The radio's settings are made when its driver announces it, which can still be on its
+# way. The driver is loaded by now, so ask for them here in case.
+uci -q get wireless.radio0 > /dev/null || wifi config
+WIFI_KEY=""
+[ -f /etc/wifi.env ] && . /etc/wifi.env
+rm -f /etc/wifi.env
+uci -q batch << EOI
+set wireless.radio0.country='${WIFI_COUNTRY}'
+set wireless.radio0.channel='${WIFI_CHANNEL}'
+set wireless.default_radio0.network='lan'
+set wireless.default_radio0.mode='ap'
+set wireless.default_radio0.encryption='psk2'
+set wireless.default_radio0.disabled='$([ -n "${WIFI_KEY}" ] && echo 0 || echo 1)'
+EOI
+# Given apart, as either can hold characters the batch above would trip on
+uci set wireless.default_radio0.ssid="${WIFI_SSID}"
+[ -n "${WIFI_KEY}" ] && uci set wireless.default_radio0.key="${WIFI_KEY}"
+uci commit wireless
