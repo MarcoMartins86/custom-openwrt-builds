@@ -1,0 +1,19 @@
+#!/bin/sh /etc/rc.common
+# The daily restart at RESTART_AT (see .env), without a cron daemon: the clock is read every
+# 30 seconds, so a change to or from summer time cannot move it. Only once sysntpd has set
+# the clock from the network, as until then it runs from the image's time and the restart
+# could come at any hour, and not in the first hour after a start, which it would repeat.
+
+START=99
+USE_PROCD=1
+
+start_service() {
+	. /etc/build.env
+	[ -n "${RESTART_AT}" ] || return 0
+
+	# Restarted however often it stops: there is no one to restart it by hand
+	procd_open_instance
+	procd_set_param command /bin/sh -c "while sleep 30; do [ -e /var/run/time-set ] && [ \"\$(date +%H:%M)\" = ${RESTART_AT} ] && [ \$(cut -d. -f1 /proc/uptime) -gt 3600 ] && exec reboot; done"
+	procd_set_param respawn 3600 5 0
+	procd_close_instance
+}

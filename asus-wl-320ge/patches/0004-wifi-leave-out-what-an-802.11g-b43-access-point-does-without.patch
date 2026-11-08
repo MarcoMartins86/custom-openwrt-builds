@@ -1,0 +1,60 @@
+From: Marco Martins
+Subject: wifi: leave out what an 802.11g b43 access point does without
+
+For an access point whose Wi-Fi does not come from OpenWrt's Wi-Fi scripts
+(see 0002): cfg80211 no longer pulls them in, with the ucode modules they
+load and their iwinfo. mac80211 no longer pulls in GCM, which only GCMP keys
+use, and 802.11g has none; CTR no longer pulls in SEQIV and the random number
+generators behind it, which only IPsec's rfc3686(ctr(aes)) uses, not CCMP.
+b43 needs cordic only for its N and LP PHYs. mac80211 and b43 ask for GCM and
+cordic to exist in the kernel, so kernel.config keeps them as modules.
+---
+diff --git a/package/kernel/linux/modules/crypto.mk b/package/kernel/linux/modules/crypto.mk
+index 869601eb70..d072e2bd73 100644
+--- a/package/kernel/linux/modules/crypto.mk
++++ b/package/kernel/linux/modules/crypto.mk
+@@ -165,7 +165,7 @@ $(eval $(call KernelPackage,crypto-crc32c))
+ 
+ define KernelPackage/crypto-ctr
+   TITLE:=Counter Mode CryptoAPI module
+-  DEPENDS:=+kmod-crypto-manager +kmod-crypto-seqiv
++  DEPENDS:=+kmod-crypto-manager
+   KCONFIG:=CONFIG_CRYPTO_CTR
+   FILES:=$(LINUX_DIR)/crypto/ctr.ko
+   AUTOLOAD:=$(call AutoLoad,09,ctr)
+diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
+index c4764687c6..1cad03d7b5 100644
+--- a/package/kernel/mac80211/Makefile
++++ b/package/kernel/mac80211/Makefile
+@@ -101,7 +101,7 @@ PKG_CONFIG_DEPENDS += \
+ define KernelPackage/cfg80211
+   $(call KernelPackage/mac80211/Default)
+   TITLE:=cfg80211 - wireless configuration API
+-  DEPENDS+= +iw +!WIFI_SCRIPTS_UCODE:iwinfo +wifi-scripts +wireless-regdb +USE_RFKILL:kmod-rfkill
++  DEPENDS+= +iw +wireless-regdb +USE_RFKILL:kmod-rfkill
+   ABI_VERSION:=$(PKG_VERSION)-$(PKG_RELEASE)
+   FILES:= \
+ 	$(PKG_BUILD_DIR)/compat/compat.ko \
+@@ -130,7 +130,7 @@ define KernelPackage/mac80211
+   $(call KernelPackage/mac80211/Default)
+   TITLE:=Linux 802.11 Wireless Networking Stack
+   # +kmod-crypto-cmac is a runtime only dependency of net/mac80211/aes_cmac.c
+-  DEPENDS+= +kmod-cfg80211 +kmod-crypto-cmac +kmod-crypto-ccm +kmod-crypto-gcm +hostapd-common
++  DEPENDS+= +kmod-cfg80211 +kmod-crypto-cmac +kmod-crypto-ccm +hostapd-common
+   KCONFIG:=\
+ 	CONFIG_AVERAGE=y
+   FILES:= $(PKG_BUILD_DIR)/net/mac80211/mac80211.ko
+diff --git a/package/kernel/mac80211/broadcom.mk b/package/kernel/mac80211/broadcom.mk
+index 7bc8aa6dc1..729b3e9a04 100644
+--- a/package/kernel/mac80211/broadcom.mk
++++ b/package/kernel/mac80211/broadcom.mk
+@@ -102,7 +102,8 @@ define KernelPackage/b43
+   	CONFIG_HW_RANDOM=y
+   # Depend on PCI_SUPPORT to make sure we can select kmod-bcma or kmod-ssb
+   DEPENDS += \
+-	@PCI_SUPPORT +kmod-mac80211 +kmod-lib-cordic \
++	@PCI_SUPPORT +kmod-mac80211 \
++	+PACKAGE_B43_PHY_N:kmod-lib-cordic +PACKAGE_B43_PHY_LP:kmod-lib-cordic \
+ 	$(if $(CONFIG_PACKAGE_B43_USE_SSB),+kmod-ssb) \
+ 	$(if $(CONFIG_PACKAGE_B43_USE_BCMA),+kmod-bcma)
+   FILES:=$(PKG_BUILD_DIR)/drivers/net/wireless/broadcom/b43/b43.ko

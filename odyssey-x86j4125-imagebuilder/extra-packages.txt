@@ -1,7 +1,0 @@
-# Packages that are not in OpenWrt's feeds. build.sh downloads each one, checks it
-# against its SHA-256 and hands it to the ImageBuilder; name it in packages.txt too.
-# One "<sha256>  <url>" per line.
-
-# Argon theme, https://github.com/jerrykuku/luci-theme-argon. Since 3.0 it includes its
-# settings page; luci-app-argon-config is only kept for installations being upgraded.
-82c36abe5dbd958f733b620c4c66b160f1b3470feaf248921baae77b2b5d0f44  https://github.com/jerrykuku/luci-theme-argon/releases/download/v3.1.0/luci-theme-argon-3.1.0-r1.apk

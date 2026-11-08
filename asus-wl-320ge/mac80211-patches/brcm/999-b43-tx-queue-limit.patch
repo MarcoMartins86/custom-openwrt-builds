@@ -1,0 +1,52 @@
+From: Marco Martins
+Subject: b43: bound the driver's transmit queue
+
+b43_op_tx() puts every frame on wl->tx_queue, and tx_work moves them to
+the DMA ring. mac80211 is stopped only when tx_work finds the ring full,
+and every TX status after the first wakes it again, before tx_work has
+emptied the queue. So the backlog leaves mac80211's queues, which are
+bounded and drop early, for wl->tx_queue, which has no bound: it takes
+every frame for as long as tx_work is held off, as by the interrupt
+thread that receives a client's upload. On a 16 MB device a phone's
+upload through a repeater grew it until the kernel ran out of memory.
+
+Stop mac80211 once a queue holds B43_TX_QUEUE_MAX frames, and wake it
+only below that.
+---
+--- a/drivers/net/wireless/broadcom/b43/b43.h
++++ b/drivers/net/wireless/broadcom/b43/b43.h
+@@ -897,6 +897,11 @@
+ #endif
+ };
+ 
++/* Packets a tx_queue takes before mac80211 is stopped: the backlog stays in
++ * mac80211's queues, which bound it and drop early, not here, where it grows
++ * for as long as tx_work is held off. */
++#define B43_TX_QUEUE_MAX	32
++
+ /* Data structure for the WLAN parts (802.11 cores) of the b43 chip. */
+ struct b43_wl {
+ 	/* Pointer to the active wireless device on this chip */
+--- a/drivers/net/wireless/broadcom/b43/main.c
++++ b/drivers/net/wireless/broadcom/b43/main.c
+@@ -3664,6 +3664,8 @@
+ 		ieee80211_queue_work(wl->hw, &wl->tx_work);
+ 	else
+ 		b43_stop_queue(wl->current_dev, skb_queue_mapping);
++	if (skb_queue_len(&wl->tx_queue[skb_queue_mapping]) >= B43_TX_QUEUE_MAX)
++		b43_stop_queue(wl->current_dev, skb_queue_mapping);
+ }
+ 
+ static void b43_qos_params_upload(struct b43_wldev *dev,
+--- a/drivers/net/wireless/broadcom/b43/dma.c
++++ b/drivers/net/wireless/broadcom/b43/dma.c
+@@ -1567,7 +1567,8 @@
+ 
+ 	if (dev->wl->tx_queue_stopped[ring->queue_prio]) {
+ 		dev->wl->tx_queue_stopped[ring->queue_prio] = false;
+-	} else {
++	} else if (skb_queue_len(&dev->wl->tx_queue[ring->queue_prio]) <
++		   B43_TX_QUEUE_MAX) {
+ 		/* If the driver queue is running wake the corresponding
+ 		 * mac80211 queue. */
+ 		b43_wake_queue(dev, ring->queue_prio);

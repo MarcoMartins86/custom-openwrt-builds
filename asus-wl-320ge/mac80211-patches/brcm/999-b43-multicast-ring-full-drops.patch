@@ -1,0 +1,44 @@
+From: Marco Martins
+Subject: b43: drop a frame for the DTIM when its ring is full
+
+Frames for stations in power save wait in the multicast ring for the
+DTIM. When the ring was full, b43 stopped the mac80211 queue of the
+frame that filled it, best effort for most broadcasts, and with it all
+of that queue's traffic until the DTIM, a repeater's uplink's too. If no
+DTIM comes, as when no beacons go out, the queue stays stopped, and
+mac80211 holds every broadcast for it, with no bound: on the device the
+held frames grew by about 2 a second, and the uplink stopped answering.
+
+Drop such a frame instead, as mac80211 does when it buffers these frames
+itself, and stop no queue for the multicast ring.
+---
+--- a/drivers/net/wireless/broadcom/b43/dma.c
++++ b/drivers/net/wireless/broadcom/b43/dma.c
+@@ -1348,6 +1348,15 @@
+ 	if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
+ 		/* The multicast ring will be sent after the DTIM */
+ 		ring = dev->dma.tx_ring_mcast;
++		/* A full ring waits for the DTIM, or for ever if none
++		 * comes: drop the frame rather than stop the queue, which
++		 * would stop all of its traffic and leave mac80211 holding
++		 * every frame for it. mac80211 drops them too when it
++		 * buffers them itself. */
++		if (free_slots(ring) < TX_SLOTS_PER_FRAME) {
++			ieee80211_free_txskb(dev->wl->hw, skb);
++			return 0;
++		}
+ 		/* Set the more-data bit. Ucode will clear it on
+ 		 * the last frame for us. */
+ 		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+@@ -1395,8 +1404,9 @@
+ 		b43err(dev->wl, "DMA tx mapping failure\n");
+ 		goto out;
+ 	}
+-	if ((free_slots(ring) < TX_SLOTS_PER_FRAME) ||
+-	    should_inject_overflow(ring)) {
++	if (ring != dev->dma.tx_ring_mcast &&
++	    ((free_slots(ring) < TX_SLOTS_PER_FRAME) ||
++	     should_inject_overflow(ring))) {
+ 		/* This TX ring is full. */
+ 		unsigned int skb_mapping = skb_get_queue_mapping(skb);
+ 		b43_stop_queue(dev, skb_mapping);

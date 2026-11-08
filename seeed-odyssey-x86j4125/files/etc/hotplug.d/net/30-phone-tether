@@ -1,0 +1,21 @@
+# A phone tethered over USB for the backup WAN (see 99-mwan3_config): bind it to the wwan
+# interface whatever the kernel names its network device. Some phones come up as usb0, others
+# as an ethN name (iOS's ipheth does). Matched by driver, so the real LAN and WAN Ethernet
+# ports are never touched.
+[ "${ACTION}" = add ] || exit 0
+DEV="${DEVICENAME:-${INTERFACE}}"
+[ -n "${DEV}" ] || exit 0
+case "$(basename "$(readlink -f "/sys/class/net/${DEV}/device/driver" 2>/dev/null)" 2>/dev/null)" in
+	ipheth|rndis_host|cdc_ether|cdc_ncm|cdc_mbim|cdc_subset) ;;
+	*) exit 0 ;;
+esac
+# An iPhone re-enumerates every couple of seconds when USB autosuspend is on (it defaults to
+# 2 s here), which flaps the tether and takes mwan3 with it. Turn autosuspend off so it stays up.
+echo -1 > /sys/module/usbcore/parameters/autosuspend 2> /dev/null
+# Point the backup interface at this device and bring it up; mwan3 then fails over to it
+# while the ISP WAN is down. Only touch the configuration when the device actually changed.
+if [ "$(uci -q get network.wwan.device)" != "${DEV}" ]; then
+	uci -q set network.wwan.device="${DEV}"
+	uci -q commit network
+fi
+ifup wwan

@@ -1,0 +1,17 @@
+From: Marco Martins
+Subject: iomap: one page of zeroes for direct I/O
+
+For a 16 MB device: the 64 KB buffer stays allocated from boot. It is only
+needed for file system blocks larger than a page, which this device has none of.
+---
+--- a/fs/iomap/direct-io.c
++++ b/fs/iomap/direct-io.c
+@@ -30,7 +30,7 @@
+ /*
+  * Used for sub block zeroing in iomap_dio_zero()
+  */
+-#define IOMAP_ZERO_PAGE_SIZE (SZ_64K)
++#define IOMAP_ZERO_PAGE_SIZE (PAGE_SIZE)
+ #define IOMAP_ZERO_PAGE_ORDER (get_order(IOMAP_ZERO_PAGE_SIZE))
+ static struct page *zero_page;
+ 

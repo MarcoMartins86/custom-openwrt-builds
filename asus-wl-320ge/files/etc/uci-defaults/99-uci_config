@@ -1,0 +1,37 @@
+# https://openwrt.org/docs/guide-developer/uci-defaults#integrating_custom_settings
+# A bridged access point: the Ethernet port and the Wi-Fi join the main router's network,
+# which hands out the addresses. Nothing here routes, filters or hands out addresses.
+# Stateless: this runs at every boot, on the settings as they come in the image.
+. /etc/build.env
+# The bridge OpenWrt makes of the LAN ports takes the WAN port as well, so the port works
+# whichever of the switch's ports it is
+BRIDGE="$(uci show network | sed -n "s/^\(network\.[^.]*\)\.name='br-lan'$/\1/p")"
+WAN="$(uci -q get network.wan.device)"
+uci -q batch << EOI
+${WAN:+add_list ${BRIDGE}.ports='${WAN}'}
+delete network.wan
+delete network.wan6
+delete network.globals.ula_prefix
+delete network.lan.ip6assign
+set network.lan.proto='static'
+delete network.lan.ipaddr
+delete network.lan.netmask
+add_list network.lan.ipaddr='${LAN_ADDRESS}'
+set network.lan.gateway='${GATEWAY}'
+delete network.lan.dns
+add_list network.lan.dns='${GATEWAY}'
+commit network
+set system.@system[0].hostname='${AP_NAME}'
+set system.@system[0].zonename='${TIMEZONE}'
+set system.@system[0].timezone='${TIMEZONE_RULE}'
+set system.@system[0].log_size='32'
+commit system
+EOI
+# With a key to log in with, SSH takes nothing else
+if [ -s /etc/dropbear/authorized_keys ]; then
+	uci -q batch << EOI
+set dropbear.main.PasswordAuth='off'
+set dropbear.main.RootPasswordAuth='off'
+commit dropbear
+EOI
+fi

@@ -1,0 +1,4 @@
+#!/bin/sh
+# OpenWrt's Wi-Fi scripts are not in the image: the access point comes from /etc/init.d/ap.
+# boot still calls this, and the network service as it stops.
+exit 0

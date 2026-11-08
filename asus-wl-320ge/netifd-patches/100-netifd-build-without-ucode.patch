@@ -1,0 +1,69 @@
+From: Marco Martins
+Subject: netifd: build without ucode
+
+ucode runs OpenWrt's Wi-Fi scripts inside netifd. For a build whose Wi-Fi does
+not come from them, its hooks do nothing, and netifd no longer loads the ucode
+library.
+---
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -24,22 +24,20 @@
+ 	iprule.c proto.c proto-static.c proto-shell.c
+ 	config.c device.c bridge.c veth.c vlan.c alias.c
+ 	macvlan.c ubus.c vlandev.c extdev.c bonding.c
+-	vrf.c ucode.c)
++	vrf.c ucode-none.c)
+ 
+ FIND_LIBRARY(uci NAMES uci)
+ FIND_LIBRARY(ubox NAMES ubox)
+ FIND_LIBRARY(ubus NAMES ubus)
+-FIND_LIBRARY(ucode NAMES ucode)
+ FIND_LIBRARY(json NAMES json-c json)
+ FIND_LIBRARY(udebug NAMES udebug)
+ FIND_LIBRARY(blobmsg_json NAMES blobmsg_json)
+ 
+-SET(LIBS ${ubox} ${ubus} ${uci} ${json} ${blobmsg_json} ${udebug} ${ucode})
++SET(LIBS ${ubox} ${ubus} ${uci} ${json} ${blobmsg_json} ${udebug})
+ 
+ FIND_PATH(ubox_include_dir libubox/usock.h)
+-FIND_PATH(ucode_include_dir ucode/vm.h)
+ FIND_PATH(udebug_include_dir udebug.h)
+-INCLUDE_DIRECTORIES(${ubox_include_dir} ${ucode_include_dir})
++INCLUDE_DIRECTORIES(${ubox_include_dir})
+ 
+ IF (NOT DEFINED LIBNL_LIBS)
+ 	include(FindPkgConfig)
+--- /dev/null
++++ b/ucode-none.c
+@@ -0,0 +1,31 @@
++/*
++ * netifd - network interface daemon
++ *
++ * Without ucode: the hooks of ucode.c, which run OpenWrt's Wi-Fi scripts, do
++ * nothing, for a build whose Wi-Fi does not come from them.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2
++ * as published by the Free Software Foundation
++ */
++#include "ucode.h"
++
++void netifd_ucode_config_load(bool start)
++{
++}
++
++void netifd_ucode_check_network_enabled(void)
++{
++}
++
++void netifd_ucode_hotplug_event(const char *name, bool add)
++{
++}
++
++void netifd_ucode_init(void)
++{
++}
++
++void netifd_ucode_free(void)
++{
++}

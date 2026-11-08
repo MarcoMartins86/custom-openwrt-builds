@@ -1,0 +1,9 @@
+#!/bin/sh /etc/rc.common
+# hostapd starts from /etc/init.d/ap with the access point's fixed configuration, not as
+# the daemon OpenWrt's Wi-Fi scripts drive. Replaces hostapd-common's version.
+
+START=19
+
+start() {
+	:
+}
