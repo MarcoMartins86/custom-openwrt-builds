@@ -15,13 +15,14 @@ What the access point does once flashed:
 |---|---|---|
 | Network | Every port, the WAN port too, and the Wi-Fi are one bridge in the main router's network, which hands out the addresses, so the devices on it show up there like any other. The access point itself is at `192.168.2.2/24`, with `192.168.2.1` as gateway and DNS. No DHCP or DNS server, no firewall, no IPv6 | `99-uci_config` |
 | Wi-Fi | One 2.4 GHz network with WPA2, on the channel the access point finds quietest when it starts | `99-wifi_config` |
-| Access | SSH with keys only | `99-uci_config` |
-| Memory | Swap compressed in memory (zram), up to half the 32 MB, for when it runs short. Small kernel and system logs, small file system blocks, and the crypto modules nothing uses left unloaded; see [Memory](#memory) | OpenWrt's `zram-swap`, `99-uci_config`, `files/etc/modules.d` |
+| Access | SSH with keys only, and a host key that comes with the image | `99-uci_config`, `build.sh` |
+| Settings | None kept: every boot starts from the image, with `/etc` in memory, and nothing writes to the flash outside a firmware upgrade. A change is a new image and a flash | `files/lib/preinit/80_mount_root`, `kernel.config` |
+| Memory | Swap compressed in memory (zram), up to half the 32 MB, for when it runs short. A kernel trimmed to what the image uses, small kernel and system logs, small file system blocks, and the crypto modules nothing uses left unloaded; see [Memory](#memory) | OpenWrt's `zram-swap`, `kernel.config`, `99-uci_config`, `files/etc/modules.d` |
 
 The scripts are in [files/etc/uci-defaults](files/etc/uci-defaults). OpenWrt runs each of them
-once, on the first boot after a flash, so the image defines the access point's whole
-configuration. The names and addresses on this page are the defaults; what can be chosen is
-listed under [Settings](#settings).
+on the first boot after a flash, and as no settings are kept, every boot is a first boot: the
+image defines the access point's whole configuration. The names and addresses on this page
+are the defaults; what can be chosen is listed under [Settings](#settings).
 
 The intended wiring: the WAN port to a LAN port of the main router, and the devices to the
 four LAN ports and the Wi-Fi.
@@ -38,8 +39,9 @@ The inputs are all in this folder:
 | `kernel.config` | Kernel options on top of those OpenWrt builds the device's kernel with |
 | `patches/` | Changes to OpenWrt's source: IPv6 made optional again |
 | `kernel-patches/` | Fixes for the kernel, added to OpenWrt's own: without the phylink one, 25.12.6 sets up none of the switch's ports; without the bridge one, netifd makes no bridge in this kernel |
+| `ksyms-keep.txt` | The kernel exports the image's modules use, which the kernel keeps; it drops the rest. `ksyms.sh` makes it from a build's modules |
 | `files/` | Files copied into the image, mainly the first-boot scripts |
-| `private/files/` | The same, for files that should not be public, such as the SSH keys allowed in. Not in the repo |
+| `private/files/` | The same, for files that should not be public: the SSH keys allowed in, and the access point's host key, which the first build makes. Not in the repo |
 
 With Docker, from this folder:
 
@@ -59,6 +61,16 @@ The build stops when `make defconfig` or the kernel leaves out a line of `openwr
 size of kernel and root file system against the most the image can hold, and stops when
 they do not fit.
 
+It also stops when a module needs a kernel export that `ksyms-keep.txt` does not list, as
+can happen after a new release or a module added to the image. Then build once with
+`NO_TRIM=1`, which keeps all the exports, run `./ksyms.sh` to list the ones the modules use
+now, and build again.
+
+The first build makes the access point's SSH host key, in
+`private/files/etc/dropbear/`, and adds its public half to `private/known_hosts` for the
+access point's address. Later builds keep using it, so the access point keeps its identity
+from one image to the next.
+
 The images land in `binaries/`, next to a `.manifest` listing every package and version that
 went in:
 
@@ -67,12 +79,13 @@ went in:
 | `openwrt-*-squashfs-sysupgrade.bin` | OpenWrt, by `flash.sh` |
 | `openwrt-*-squashfs-factory.bin` | TP-Link's own firmware, in its web interface |
 
-> **Note** The image holds the Wi-Fi password. Do not hand it out.
+> **Note** The image holds the Wi-Fi password and the SSH host key. Do not hand it out.
 
 The container runs as user 1000. If that is not you, give it the folders first with
-`mkdir -p binaries dl openwrt && chown 1000 binaries dl openwrt`. `JOBS` sets how many jobs
-run at once, one per core by default, and `AUTOREMOVE=1` deletes each package's build files
-once it is built, for a machine short of disk space.
+`mkdir -p binaries dl openwrt private && chown 1000 binaries dl openwrt private`. `JOBS` sets
+how many jobs run at once, one per core by default, `AUTOREMOVE=1` deletes each package's
+build files once it is built, for a machine short of disk space, and `NO_TRIM=1` keeps all
+the kernel's exports.
 
 Without Docker, on a Linux machine [set up for building OpenWrt](https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem),
 run `./build.sh`.
@@ -103,7 +116,7 @@ Private settings, which only make sense in `private/.env`:
 | Setting | What it sets |
 |---|---|
 | `WIFI_KEY` | The Wi-Fi password, 8 to 63 characters. Without it the image comes with Wi-Fi switched off |
-| `KEY`, `KNOWN_HOSTS` | For `flash.sh`: the SSH private key to log in with, and the file holding the access point's host key |
+| `KEY`, `KNOWN_HOSTS` | For `flash.sh`: the SSH private key to log in with, and the file holding the host key of the system running before the flash. After the flash, `flash.sh` checks the access point by the host key in `private/known_hosts` |
 | `ROUTER`, `PORT` | For `flash.sh`: where to reach the access point, if not at the address in `LAN_ADDRESS` on port 22 |
 
 ## SSH access
@@ -113,13 +126,21 @@ into `private/files/etc/dropbear/authorized_keys` before building. They have to 
 keys: RSA is left out of the image. Without the file, SSH takes the root password, which a
 fresh image does not have.
 
+The access point's own host key comes with the image (see [Build](#build)): without settings
+kept, a key made on the device would be a new one at every boot. To check it from another
+machine, use `private/known_hosts`, as in
+`ssh -o UserKnownHostsFile=private/known_hosts root@192.168.2.2`.
+
+Changes made over SSH, with `uci` or otherwise, last until the next restart.
+
 ## Size
 
 The flash holds the boot loader (128 KB), the firmware partition (3,904 KB) and the radio's
 calibration data (64 KB). TP-Link's image tool takes at most 3,840 KB of the partition and
 keeps 256 KB of that for the settings, so kernel and root file system together have to fit
 **3,669,504 bytes**. When they do not, OpenWrt's build makes no image and says nothing; the
-build here stops instead. Whatever the image leaves of the partition holds the settings.
+build here stops instead. The settings are not kept, so whatever the image leaves of the
+partition goes unused.
 
 With OpenWrt's defaults for the device, kernel and root file system come to 5,484,389 bytes.
 What got them down, measured on 25.12.6, in KB of 1,024 bytes. Most steps were measured on
@@ -136,10 +157,10 @@ OpenWrt's profile for the v4, which differs only in its switch; the last change 
 | Added swap compressed in memory (zram), with the kernel's swap support | +16 | +21 |
 | Root file system in blocks of 32 KB instead of 64, for [memory](#memory) | | +81 |
 | The v3's switch driver (DSA) with the kernel parts it needs, less VLAN support, which its switch does without | +20 | +56 |
-| **The image now** | **1,523** | **2,001** |
+| Kernel exports kept only for the image's modules (`ksyms-keep.txt`), and the kernel without PCI, GPIO from user space, multicast snooping in the bridge, policy routing, partition tables, an initial RAM disk and jffs2, which settings not kept do without | −292 | −2 |
+| **The image now** | **1,231** | **1,999** |
 
-That leaves 59 KB to spare, and 319 KB of flash for the settings, which the image
-takes in steps of 64 KB.
+That leaves 353 KB to spare.
 
 Measured and left for later releases, which tend to grow:
 
@@ -150,10 +171,10 @@ Measured and left for later releases, which tend to grow:
 | No `iw` | 39 KB | OpenWrt's Wi-Fi setup uses it for the transmit power and antenna settings |
 | No package records under `/lib/apk` | 30 KB | `sysupgrade` reads them to find the settings to keep; `/etc/sysupgrade.conf` would have to list those |
 | Kernel without stack protection | 6 KB | A safeguard against memory corruption |
-| Less flash kept for the settings | up to 192 KB | A patch to the image tool's reserve, and less room for settings |
+| The image tool's 256 KB for the settings, which nothing uses now | 256 KB | A patch to the image tool |
 
 WPA3, as WPA2/WPA3 mixed, would take hostapd-basic-mbedtls and an mbedtls cut down to what
-it needs: 230 KB, which is 171 KB more than is spare.
+it needs: 230 KB, which now fits in what is spare.
 
 ## Memory
 
@@ -166,14 +187,15 @@ The 32 MB of memory is the tighter limit, so the image spends flash where that s
 | The root file system in blocks of 32 KB instead of 64 (`openwrt.config`). The kernel keeps about five blocks unpacked | 160 KB | 81 KB |
 | The system log keeps 64 KB instead of 128 KB (`99-uci_config`) | up to 64 KB | none |
 | The kernel's small-memory allocator and tables (`kernel.config`) | not measured | none |
+| Kernel exports kept only for the image's modules, and the kernel without PCI, GPIO from user space, multicast snooping, policy routing, partition tables, an initial RAM disk and jffs2 (`kernel.config`) | 916 KB more memory for the system, and 2.7 MB more available after boot, measured on the device | none: 292 KB less |
 | Swap compressed in memory (zram) | what it compresses, when memory runs short | 37 KB |
 
-With everything running, hostapd included, about 11.5 MB is left. That is the Malta test's
-estimate of about 12.5 MB, less the Wi-Fi driver's receive buffers, about 0.6 to 1 MB, which
-it only allocates for a radio. The daemons themselves hold little of their own: netifd
-500 KB, hostapd 400 KB, procd 170 KB, logd 120 KB, and less than 100 KB each for the rest.
-The kernel takes most of what is used. For comparison, OpenWrt 19.07 on this device, with a
-smaller kernel but all of a router's services, leaves 12.1 MB.
+On the device, with everything running, hostapd included, about 16 MB is available a
+minute after boot. The Malta test estimates 13.4 MB, as it cannot count what differs on the
+device, such as the Wi-Fi driver's receive buffers. The daemons themselves hold little of
+their own: netifd 500 KB, hostapd 400 KB, procd 170 KB, logd 110 KB, and less than 100 KB
+each for the rest. The kernel takes most of what is used. For comparison, OpenWrt 19.07 on
+this device, with a smaller kernel but all of a router's services, leaves 12.1 MB.
 
 Measured and left for later:
 
@@ -247,16 +269,9 @@ For an access point already running this image:
 ```
 
 It uploads the image, checks it, and upgrades the access point over SSH, then waits for it
-to come back with the new release. Before that it saves a backup of the whole configuration
-to `private/backups/`, the last five. The SSH key and known-hosts file come from
-`private/.env`, see [Settings](#settings).
-
-What a flash keeps and what it replaces:
-
-| | |
-|---|---|
-| Kept | The SSH host key |
-| Replaced | The whole configuration, which the first-boot scripts write again |
+to come back with the new release and the host key in `private/known_hosts`. The SSH key
+and known-hosts file come from `private/.env`, see [Settings](#settings). Nothing of the
+running system is kept, as the image holds every setting and the host key.
 
 ### First flash
 
@@ -267,7 +282,7 @@ From OpenWrt 19.07, which this kind of device last got images for:
    for 19.07's root password, once. 19.07's SSH server only offers an RSA host key signed
    with SHA-1, which `flash.sh` accepts for this one connection.
 3. 19.07's settings do not carry over. After the flash the access point is at `LAN_ADDRESS`,
-   in the main router's network, with a new SSH host key, and only takes the key. This
+   in the main router's network, with the image's SSH host key, and only takes the key. This
    machine needs a new address from the main router: unplug its cable and plug it back in.
 
 OpenWrt's ath79 builds of 19.07 know the board as `tplink,tl-wr941-v2`, the name the image
@@ -322,12 +337,12 @@ new release. What worked on a v3:
   for filtering off on every bridge it makes, and such a kernel refused even that. The access
   point then has no address, and its Wi-Fi accepts clients that can reach nothing. The Malta
   tests miss this, as they boot OpenWrt's Malta kernel, which has VLAN filtering.
-- **No LuCI**: there is no room for it. Settings are changed over SSH with `uci`, and are
-  lost with the next flash unless they go into the image.
+- **No LuCI**: there is no room for it. Settings change with a new image; a change over SSH
+  with `uci` lasts until the next restart.
 - **No package manager**: everything comes with a new image.
 - **The system log** is only kept in memory, and read with `logread`.
 - **Memory**: 32 MB is tight. The access point runs no more than the kernel, procd, netifd,
-  hostapd, dropbear and logd, which leave about 11.5 MB free; see [Memory](#memory).
+  hostapd, dropbear and logd, which leave about 16 MB available; see [Memory](#memory).
   When it runs short, the kernel swaps to zram, which compresses what it swaps out and
   keeps it in memory; `free` and `cat /proc/swaps` show how much is in use. It only delays
   running out: if zram fills up too, the kernel ends processes, and procd starts them again.

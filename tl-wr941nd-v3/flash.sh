@@ -3,11 +3,9 @@
 # Flashes the built image to the running access point over SSH and waits for it to come
 # back at its address in LAN_ADDRESS.
 #
-# Of the running system only the SSH host key is kept, when it is of the kind the image
-# uses (Ed25519), so that the access point keeps its identity. The first-boot scripts set
-# up everything else from the image. A backup of the whole configuration is saved first,
-# to private/backups/ on this machine. A running system that does not take the SSH key asks
-# for its root password, once.
+# The image is stateless, so nothing of the running system is kept: every setting comes
+# with the image, the SSH host key too, which private/known_hosts holds. A running system
+# that does not take the SSH key asks for its root password, once.
 # https://openwrt.org/docs/guide-user/installation/generic.sysupgrade
 #
 # usage: flash.sh [-y] [-F] [image.bin]
@@ -48,7 +46,7 @@ IMAGE="${1:-${HERE}/binaries/openwrt-${OPENWRT_VERSION}-ath79-tiny-tplink_tl-wr9
 HOST="${ROUTER}"
 MUX=""
 router() {
-	ssh -p "${PORT}" -o BatchMode=yes -o ConnectTimeout=8 -o StrictHostKeyChecking=accept-new \
+	ssh -p "${PORT}" -o BatchMode=yes -o ConnectTimeout=8 -o StrictHostKeyChecking="${STRICT:-accept-new}" \
 		-o ServerAliveInterval=2 -o ServerAliveCountMax=3 \
 		${MUX:+-o ControlPath="${MUX}"} \
 		${KEY:+-i "${KEY}" -o IdentitiesOnly=yes} \
@@ -76,37 +74,9 @@ LOCAL="$(sha256sum < "${IMAGE}" | cut -d' ' -f1)"
 REMOTE="$(router 'sha256sum < /tmp/firmware.bin' | cut -d' ' -f1)"
 [ "${LOCAL}" = "${REMOTE}" ] || { echo "checksum mismatch after upload" >&2; exit 1; }
 
-# The host key comes along when the running system has one of the kind the image uses
 echo "Checking the image"
-KEEP="$(router '
-f=etc/dropbear/dropbear_ed25519_host_key
-if [ -s /$f ]; then
-	tar czf /tmp/identity.tar.gz -C / $f
-	echo kept
-else
-	rm -f /tmp/identity.tar.gz
-fi')"
-if [ -n "${KEEP}" ]; then
-	OPTIONS="-f /tmp/identity.tar.gz"
-else
-	OPTIONS="-n"
-	echo "The running system has no Ed25519 host key: the access point gets a new one"
-fi
-router "sysupgrade -T ${FORCE} ${OPTIONS} /tmp/firmware.bin" ||
+router "sysupgrade -T ${FORCE} -n /tmp/firmware.bin" ||
 	{ echo "the running system does not take the image; see \"First flash\" in the README" >&2; exit 1; }
-
-# The whole configuration as the access point has it now, in the format LuCI's backup
-# uses, in case the old image has to come back with it. The last five are kept.
-BACKUPS="${HERE}/private/backups"
-BACKUP="${BACKUPS}/${ROUTER}-$(date +%Y%m%d-%H%M%S).tar.gz"
-(
-	umask 077
-	mkdir -p "${BACKUPS}"
-	router 'sysupgrade -b /tmp/backup.tar.gz > /dev/null && cat /tmp/backup.tar.gz && rm -f /tmp/backup.tar.gz' > "${BACKUP}"
-)
-tar tzf "${BACKUP}" > /dev/null 2>&1 || { echo "the backup did not come through" >&2; rm -f "${BACKUP}"; exit 1; }
-echo "Configuration saved to private/backups/$(basename "${BACKUP}")"
-ls -1t "${BACKUPS}/${ROUTER}-"*.tar.gz | tail -n +6 | xargs -r rm -f
 
 if [ -z "${YES}" ]; then
 	printf "Flash %s now? Its network will be down for a few minutes. [y/N] " "${ROUTER}"
@@ -115,18 +85,15 @@ if [ -z "${YES}" ]; then
 fi
 
 # The connection drops when the upgrade starts, so a failure here is expected
-router "sysupgrade -v ${FORCE} ${OPTIONS} /tmp/firmware.bin" || true
-
-# A new host key would not match the one known for the address
-if [ -z "${KEEP}" ] && [ -n "${KNOWN_HOSTS}" ] && [ -f "${KNOWN_HOSTS}" ]; then
-	ssh-keygen -R "${NEW}" -f "${KNOWN_HOSTS}" > /dev/null 2>&1 || true
-fi
+router "sysupgrade -v ${FORCE} -n /tmp/firmware.bin" || true
 
 # Back once it runs the release and the first-boot scripts are done. The image takes the
-# key, over connections of its own.
+# key, over connections of its own, and has to show the host key the build gave it.
 echo "Waiting for ${NEW} to come back with OpenWrt ${OPENWRT_VERSION}"
 HOST="${NEW}"
 MUX=""
+KNOWN_HOSTS="${HERE}/private/known_hosts"
+STRICT=yes
 start="$(date +%s)"
 while [ $(($(date +%s) - start)) -lt 420 ]; do
 	sleep 5

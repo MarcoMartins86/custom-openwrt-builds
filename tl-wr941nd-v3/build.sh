@@ -15,6 +15,8 @@
 #   JOBS          how many jobs to run at once; one per processor core by default
 #   AUTOREMOVE=1  delete each package's build files once it is built, for a machine
 #                 short of disk space. A full build needs about 10 GB without it.
+#   NO_TRIM=1     keep all the kernel's exports: for when a module needs one ksyms-keep.txt
+#                 does not list, which stops the build. ksyms.sh then lists them anew.
 
 set -e
 
@@ -82,7 +84,16 @@ fi
 for patch in "${HERE}"/patches/*.patch; do
 	git -C "${SRC}" apply "${patch}"
 done
-cat "${HERE}/kernel.config" >> "${SRC}/target/linux/ath79/tiny/config-default"
+# The kernel options, with the path of the exports to keep, which depends on where this
+# directory is
+KERNEL_CONFIG="$(mktemp)"
+if [ "${NO_TRIM}" = 1 ]; then
+	sed 's/^CONFIG_TRIM_UNUSED_KSYMS=y$/# CONFIG_TRIM_UNUSED_KSYMS is not set/' "${HERE}/kernel.config" > "${KERNEL_CONFIG}"
+else
+	cat "${HERE}/kernel.config" > "${KERNEL_CONFIG}"
+	echo "CONFIG_UNUSED_KSYMS_WHITELIST=\"${HERE}/ksyms-keep.txt\"" >> "${KERNEL_CONFIG}"
+fi
+cat "${KERNEL_CONFIG}" >> "${SRC}/target/linux/ath79/tiny/config-default"
 # Fixes for the kernel join OpenWrt's own pending kernel patches. The copies from an earlier
 # build are the only files there that are not OpenWrt's, and go first.
 PENDING="${SRC}/target/linux/generic/pending-$(sed -n 's/^KERNEL_PATCHVER:=//p' "${SRC}/target/linux/ath79/Makefile")"
@@ -100,19 +111,36 @@ make defconfig > /dev/null
 MISSING="$(config_missing "${HERE}/openwrt.config" .config)"
 [ -z "${MISSING}" ] || { printf "make defconfig left out of openwrt.config:\n%s\n" "${MISSING}" >&2; exit 1; }
 
+make -j"${JOBS}" download
+
+# The access point's SSH host key, made once and kept in private/: with stateless settings
+# it would otherwise be a new one at every boot. Dropbear only reads its own format, so its
+# key tool is built for this machine from the source just downloaded. Its public half goes
+# to private/known_hosts, for flash.sh and ssh to check the access point by.
+HOSTKEY="${HERE}/private/files/etc/dropbear/dropbear_ed25519_host_key"
+if [ ! -s "${HOSTKEY}" ]; then
+	echo "Making the access point's SSH host key"
+	TOOL="$(mktemp -d)"
+	tar -xjf "$(ls dl/dropbear-*.tar.bz2 | tail -n 1)" -C "${TOOL}" --strip-components=1
+	(cd "${TOOL}" && ./configure --disable-zlib --disable-syslog > /dev/null && make -s dropbearkey > /dev/null)
+	mkdir -p "$(dirname "${HOSTKEY}")"
+	(umask 077; "${TOOL}/dropbearkey" -t ed25519 -f "${HOSTKEY}" > /dev/null)
+	echo "${LAN_ADDRESS%/*} $("${TOOL}/dropbearkey" -y -f "${HOSTKEY}" | grep '^ssh-ed25519' | cut -d' ' -f1-2)" \
+		>> "${HERE}/private/known_hosts"
+	rm -rf "${TOOL}"
+fi
+
 # files/ is public. private/files/ is not in the repo and holds what should stay out of
-# it, such as the SSH keys allowed to log in.
+# it: the SSH keys allowed to log in, and the host key.
 rm -rf files
 cp -a "${HERE}/files" files
-[ -d "${HERE}/private/files" ] && cp -a "${HERE}/private/files/." files/
+cp -a "${HERE}/private/files/." files/
 # git does not keep the modes dropbear insists on
-if [ -f files/etc/dropbear/authorized_keys ]; then
-	chmod 700 files/etc/dropbear
-	chmod 600 files/etc/dropbear/authorized_keys
-fi
+chmod 700 files/etc/dropbear
+chmod 600 files/etc/dropbear/*
 # The settings travel in the image as /etc/build.env, which the first-boot scripts read.
-# The Wi-Fi password goes apart and only stays until the first boot has used it, but the
-# image itself keeps it: do not hand the image out.
+# The Wi-Fi password goes apart and only stays until the boot has used it, but the image
+# itself keeps it, as it does the host key: do not hand the image out.
 write_env ${SETTINGS} > files/etc/build.env
 if [ -n "${WIFI_KEY}" ]; then
 	(umask 077; write_env WIFI_KEY > files/etc/wifi.env)
@@ -123,7 +151,6 @@ OUT=bin/targets/ath79/tiny
 NAME=openwrt-ath79-tiny-tplink_tl-wr941-v2
 rm -f "${OUT}/${NAME}"*
 
-make -j"${JOBS}" download
 make -j"${JOBS}" || {
 	echo "The build failed. Once more on one core, showing every command, to find the error:" >&2
 	make -j1 V=s
@@ -143,9 +170,9 @@ if [ ! -f "${OUT}/${NAME}-squashfs-sysupgrade.bin" ]; then
 	echo "No image: kernel and root file system are $((KERNEL + ROOTFS - LIMIT)) bytes too big" >&2
 	exit 1
 fi
-# The settings get what the image leaves of the firmware partition
-SIZE="$(stat -c %s "${OUT}/${NAME}-squashfs-sysupgrade.bin")"
-echo "$(((LIMIT - KERNEL - ROOTFS) / 1024)) KB to spare, $(((0x3d0000 - SIZE) / 1024)) KB of flash left for the settings"
+# The settings are stateless, so what the image leaves of the firmware partition, the
+# image tool's 256 KB for them included, goes unused
+echo "$(((LIMIT - KERNEL - ROOTFS) / 1024)) KB to spare"
 
 mkdir -p "${HERE}/binaries"
 for file in "${OUT}/${NAME}"*; do
