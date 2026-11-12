@@ -177,14 +177,15 @@ if [ ! -f "${OUT}/${NAME}-squashfs-sysupgrade.bin" ]; then
 fi
 echo "$(((LIMIT - KERNEL - ROOTFS) / 1024)) KB left for the settings"
 
-# The images are named after OpenWrt's revision, which the extender reports once flashed
+# The images keep OpenWrt's names: TP-Link's web page drops an upload whose file name has
+# 69 characters or more, and OpenWrt's factory image name has 63. OpenWrt's revision, which
+# the extender reports once flashed, goes into a file of its own.
 REVISION="$(cat "${OUT}/version.buildinfo")"
 mkdir -p "${HERE}/binaries"
 rm -f "${HERE}/binaries/openwrt-"*
-for file in "${OUT}/${NAME}"*; do
-	cp "${file}" "${HERE}/binaries/openwrt-${REVISION}-${file##*/openwrt-}"
-done
+cp "${OUT}/${NAME}"* "${HERE}/binaries/"
 echo "${REVISION}" > "${HERE}/binaries/revision"
 cd "${HERE}/binaries"
-sha256sum "openwrt-${REVISION}-"*.bin > sha256sums
-ls -l "openwrt-${REVISION}-"*
+sha256sum "${NAME}"*.bin > sha256sums
+echo "OpenWrt ${REVISION}"
+ls -l "${NAME}"*

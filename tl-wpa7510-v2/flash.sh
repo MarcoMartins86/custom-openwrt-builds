@@ -34,7 +34,7 @@ if [ "$1" = "-y" ]; then
 fi
 [ -f "${HERE}/binaries/revision" ] || { echo "no image found; build one first" >&2; exit 1; }
 REVISION="$(cat "${HERE}/binaries/revision")"
-IMAGE="${1:-${HERE}/binaries/openwrt-${REVISION}-ramips-mt7620-tplink_tl-wpa7510-v2-squashfs-sysupgrade.bin}"
+IMAGE="${1:-${HERE}/binaries/openwrt-ramips-mt7620-tplink_tl-wpa7510-v2-squashfs-sysupgrade.bin}"
 [ -f "${IMAGE}" ] || { echo "${IMAGE} not found" >&2; exit 1; }
 
 # Runs a command on the extender at ${HOST}, over the connection in ${MUX} when set

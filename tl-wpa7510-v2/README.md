@@ -73,14 +73,14 @@ The first build makes the extender's SSH host key, in `private/files/etc/dropbea
 adds its public half to `private/known_hosts` for the extender's address. Later builds keep
 using it, so the extender keeps its identity from one image to the next.
 
-The images land in `binaries/`, named after OpenWrt's revision, next to a `.manifest`
-listing every package and version that went in:
+The images land in `binaries/`, with OpenWrt's names, next to a `.manifest` listing every
+package and version that went in, and `revision`, OpenWrt's revision of the build:
 
 | Image | For |
 |---|---|
+| `openwrt-*-squashfs-factory.bin` | The first flash, from TP-Link's web page |
 | `openwrt-*-squashfs-sysupgrade.bin` | Flashing from OpenWrt, by `flash.sh` |
-| `openwrt-*-initramfs-kernel.bin` | Booting from memory with the boot loader: the first flash, and recovery |
-| `openwrt-*-squashfs-factory.bin` | TP-Link's web interface. Not tried: its partition table header differs from the stock one |
+| `openwrt-*-initramfs-kernel.bin` | Booting from memory with the boot loader, for recovery |
 
 > **Note** The images hold the Wi-Fi password and the SSH host key. Do not hand them out.
 
@@ -191,12 +191,36 @@ lost with them, and the chip goes back to the pairing in its flash partition.
 
 ### First flash
 
-From TP-Link's firmware, the way that has been tried goes through the boot loader, and needs
-a 3.3 V USB serial adapter. Make a backup of the whole flash first: it holds the only copy of
-the unit's MAC addresses, Wi-Fi calibration and powerline parameters. The stock firmware's
-serial console takes `root` with the password `sohoadmin`, and
-`tftp -p -l /dev/mtdblock0 -r backup-8MB.bin <TFTP server>` sends the whole flash to a TFTP
-server that takes uploads; pull it twice and compare.
+From TP-Link's firmware, in its web page (tried with firmware 2.0.5, Build 20240306, EU):
+
+1. Open the extender's web page and log in, and go to its Firmware Upgrade page.
+2. Choose `openwrt-ramips-mt7620-tplink_tl-wpa7510-v2-squashfs-factory.bin` from
+   `binaries/`, click Upgrade and confirm. **Keep the file name short**: the web page drops
+   an upload whose file name has 69 characters or more, and then says "Wrong file". OpenWrt's
+   name for the image has 63; OpenWrt's release images, named `openwrt-<version>-ramips-…`,
+   have to be renamed first.
+3. The extender writes the image and restarts into OpenWrt, a few minutes in all. It comes
+   up at `LAN_ADDRESS`, with the settings of the build and the extender's host key, so
+   `flash.sh` takes it from there.
+
+The web page takes the image as TP-Link's own: same format and checksum, and a support list
+with the unit's model. That list names the EU model (`special_id:45550000`); a unit made for
+another region refuses the image. The web page writes OpenWrt's kernel and root file system
+and its own partition table entries for them, and leaves the rest of the flash alone.
+
+Once OpenWrt runs, save a copy of the flash's partitions: they hold the only copy of the
+unit's MAC addresses, Wi-Fi calibration and powerline parameters.
+
+```
+for p in $(ssh root@192.168.2.4 "sed -n 's/^\(mtd[0-9]*\):.*/\1/p' /proc/mtd"); do
+	ssh root@192.168.2.4 "cat /dev/${p}" > "${p}.bin"
+done
+```
+
+### Recovery
+
+When a flash does not boot, the boot loader can boot the image from memory, but only over
+the serial port: nothing in it checks a button. It needs a 3.3 V USB serial adapter.
 
 1. The serial port is four pads in a row on the board: TX, RX, GND, 3.3 V. Wire the
    adapter's RXD to TX, its TXD to RX and GND to GND, and leave 3.3 V unconnected. 115200
@@ -220,13 +244,23 @@ server that takes uploads; pull it twice and compare.
 5. The image from memory comes up with the settings of this build, at `LAN_ADDRESS`, and
    with the extender's host key. Run `KNOWN_HOSTS=private/known_hosts ./flash.sh`.
 
-Recovery is the same: steps 2 to 4 boot the image from memory whatever is on the flash.
-Nothing in the boot loader checks a button, so without the serial port a flash that does
-not boot cannot be recovered.
+### Back to TP-Link's firmware
 
-To go back to TP-Link's firmware, cut it out of the backup, from the image booted from
-memory: `dd if=backup-8MB.bin of=stock.bin bs=64k skip=6 count=93`, copy it to the extender
-and write it with `mtd write stock.bin firmware`.
+This takes the stock firmware from a backup of the whole flash made before OpenWrt: its
+`0x60000` to `0x630000`, 6,094,848 bytes, which hold TP-Link's kernel and root file system.
+The stock firmware's serial console takes `root` with the password `sohoadmin`, and
+`tftp -p -l /dev/mtdblock0 -r backup-8MB.bin <TFTP server>` sends the whole flash to a TFTP
+server that takes uploads; pull it twice and compare. Then, from OpenWrt:
+
+```
+dd if=backup-8MB.bin of=stock.bin bs=64k skip=6 count=93
+ssh root@192.168.2.4 'cat > /tmp/stock.bin' < stock.bin
+ssh root@192.168.2.4 sysupgrade -F -n /tmp/stock.bin
+```
+
+`-F` because the file has none of OpenWrt's image information. This was tried from an
+extender flashed with `flash.sh`, which leaves TP-Link's partition table alone, not yet after
+an install from the web page, which changes it.
 
 ## Good to know
 
