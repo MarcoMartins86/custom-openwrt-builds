@@ -1,0 +1,18 @@
+services:
+  # OpenWrt's SDK container, https://github.com/openwrt/docker
+  # It is used for the tools it brings, which are everything OpenWrt's build needs:
+  # build.sh builds the image from the source in .env in it. The tag is in .env.
+  builder:
+    image: ghcr.io/openwrt/sdk:${SDK_TAG}
+    # Docker's default network is enough, and a firewall that only knows that one (as
+    # on the main router) would cut a per-project network off
+    network_mode: bridge
+    environment:
+      - JOBS
+      - AUTOREMOVE
+      - NO_TRIM
+    volumes:
+      - type: bind
+        source: .
+        target: /work
+    command: sh /work/build.sh

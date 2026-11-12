@@ -1,0 +1,23 @@
+build: make IPv6 support optional again
+
+Lets an image for a small device leave IPv6 out of the kernel and the packages.
+On the TL-WPA7510 v2 that takes 146 KB off the compressed kernel.
+
+Brings back the prompt that 832e7b8172 ("build: always set CONFIG_IPV6") removed
+because some packages fail to build without IPv6. Every package of this image
+builds without it.
+
+diff --git a/config/Config-build.in b/config/Config-build.in
+index 5722c21d41..e8d0c459ab 100644
+--- a/config/Config-build.in
++++ b/config/Config-build.in
+@@ -204,7 +204,8 @@ menu "Global build settings"
+ 		  Packages can opt-out via setting PKG_BUILD_FLAGS:=no-mold
+ 
+ 	config IPV6
+-		def_bool y
++		bool "Enable IPv6 support in packages"
++		default y
+ 
+ 	comment "Stripping options"
+ 
