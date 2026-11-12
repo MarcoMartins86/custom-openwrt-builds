@@ -21,6 +21,7 @@ What the extender does once flashed:
 | Powerline | `bcmplcd` loads the chip at every start, from the chip's partitions on the flash, which hold the pairing made with the stock firmware. The pair button pairs anew | the fork's `bcmplcd` |
 | Access | SSH with keys only, and a host key that comes with the image | `99-uci_config`, `build.sh` |
 | Settings | Kept on the flash as usual, but `flash.sh` starts every flash from the image's settings | `flash.sh` |
+| Updates | A new image can run from memory first, started by kexec from the running one over SSH, and go to the flash once it works: no serial port needed | `try.sh`, `flash.sh` |
 
 The scripts are in [files/etc/uci-defaults](files/etc/uci-defaults). OpenWrt runs each of them
 on the first boot after a flash. The names and addresses on this page are the defaults;
@@ -37,6 +38,7 @@ The inputs are all in this folder:
 | `openwrt.config` | OpenWrt's build configuration, as far as it differs from the device's defaults: the packages left out, and the options of the kernel, Wi-Fi, SSH and command-line tools |
 | `kernel.config` | Kernel options on top of those OpenWrt builds the device's kernel with |
 | `patches/` | Changes to OpenWrt's source: IPv6 made optional again |
+| `kernel-patches/` | Fixes for the kernel, added to OpenWrt's own: without the kexec one, starting another kernel with kexec ends in a kernel BUG |
 | `ksyms-keep.txt` | The kernel exports the image's modules use, which the kernel keeps; it drops the rest. `ksyms.sh` makes it from a build's modules |
 | `files/` | Files copied into the image: the first-boot scripts |
 | `private/files/` | The same, for files that should not be public: the SSH keys allowed in, and the extender's host key, which the first build makes. Not in the repo |
@@ -80,6 +82,7 @@ package and version that went in, and `revision`, OpenWrt's revision of the buil
 |---|---|
 | `openwrt-*-squashfs-factory.bin` | The first flash, from TP-Link's web page |
 | `openwrt-*-squashfs-sysupgrade.bin` | Flashing from OpenWrt, by `flash.sh` |
+| `openwrt-*-initramfs-kexec.elf` | Booting from memory on the running extender, by `try.sh`, to try an image before flashing it |
 | `openwrt-*-initramfs-kernel.bin` | Booting from memory with the boot loader, for recovery |
 
 > **Note** The images hold the Wi-Fi password and the SSH host key. Do not hand them out.
@@ -149,9 +152,10 @@ measured on the device's branch, in bytes:
 | Kernel without BPF, ethtool's netlink interface, System V IPC, multipath TCP, key rings, swap, core dumps, debugging, multicast routing and snooping, policy routing, parallel flash, other vendors' firmware layouts, regulators, USB and partition tables; Wi-Fi without mesh and debugging files; hostapd-basic-mbedtls instead of wpad-basic-mbedtls | −580,491 | −222,264 |
 | Kernel exports kept only for the image's modules (`ksyms-keep.txt`); command-line tools nothing uses; SSH with Ed25519 only and without its client; no urngd | −219,096 | −48,636 |
 | No package manager, and with it no TLS library; no IPv6; hostapd-mini, WPA2 only | −150,553 | −540,788 |
-| **The image now** | **1,974,207** | **2,204,384** |
+| kexec, to try an image from memory before flashing it ([Try an image first](#try-an-image-first)) | +2,705 | +63,596 |
+| **The image now** | **1,976,912** | **2,267,980** |
 
-That leaves 1,916,257 bytes, 1.8 MB, for the settings.
+That leaves 1,849,956 bytes, 1.8 MB, for the settings.
 
 Measured and left out, each on its own:
 
@@ -188,6 +192,25 @@ come back with the image's revision and the host key in `private/known_hosts`. T
 and known-hosts file come from `private/.env`, see [Settings](#settings). The running
 system's settings are not kept; a pairing made with the pair button since the last flash is
 lost with them, and the chip goes back to the pairing in its flash partition.
+
+### Try an image first
+
+A new image can run from memory before it goes to the flash, with nothing more than SSH:
+
+```
+./try.sh
+```
+
+It uploads `openwrt-*-initramfs-kexec.elf` and has the running image start it with kexec, in
+place of its own kernel, then waits for the extender to come back with the image's revision,
+running from memory. Once it works, `./flash.sh` flashes the image from there; a restart or a
+power cut brings back the image on the flash instead. It needs an image with kexec on the
+flash, which images from this folder have.
+
+What this cannot try is the way from the flash: the boot loader starting the kernel from it,
+and the root file system and settings on it. These only change with the device's partitions,
+its image recipe or a much bigger kernel, but a flash that does not boot can only be recovered
+over the serial port (see [Recovery](#recovery)).
 
 ### First flash
 
@@ -273,6 +296,14 @@ an install from the web page, which changes it.
 - **Pairing**: the pair button starts a pairing with another adapter, and a second press
   ends it; `bcmplc status` shows how it went, and `bcmplc info` the adapters in the network.
 - **No LuCI and no package manager**: everything comes with a new image.
+- **kexec and the device tree**: the kernel looks for its device tree right after its own end,
+  where the image recipe puts it, and the kernel here has no other way for kexec to hand one
+  over. So `build.sh` builds the image for kexec the same way: the unpacked kernel and the
+  device tree after it, in an ELF file that starts at the kernel's entry point.
+- **kexec and the kernel**: OpenWrt's own patch that passes kexec's command line to the new
+  kernel copies it into kernel text, and the kernel's hardened copies from user space stop
+  that with a kernel BUG on the first `kexec -l`. `kernel-patches/331-…` copies it through a
+  buffer of its own.
 - **The boot crash**: the MT7620's processor core can return from an interrupt to a wrong
   address when the kernel runs code in its first 32 KB, which OpenWrt's kernels for this
   chip did at the time of writing. The fork keeps the kernel's code out of there.

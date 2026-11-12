@@ -104,6 +104,11 @@ else
 fi
 KERNEL_VERSION="$(sed -n 's/^KERNEL_PATCHVER:=//p' "${SRC}/target/linux/ramips/Makefile")"
 cat "${KERNEL_CONFIG}" >> "${SRC}/target/linux/ramips/mt7620/config-${KERNEL_VERSION}"
+# Fixes for the kernel join OpenWrt's own pending kernel patches. The copies from an earlier
+# build are the only files there that are not OpenWrt's, and go first.
+PENDING="${SRC}/target/linux/generic/pending-${KERNEL_VERSION}"
+git -C "${SRC}" clean -fq -- "${PENDING}"
+cp "${HERE}"/kernel-patches/*.patch "${PENDING}/"
 
 # Every package comes from OpenWrt's own tree, so the package feeds are left out
 mkdir -p "${HERE}/dl"
@@ -185,7 +190,41 @@ mkdir -p "${HERE}/binaries"
 rm -f "${HERE}/binaries/openwrt-"*
 cp "${OUT}/${NAME}"* "${HERE}/binaries/"
 echo "${REVISION}" > "${HERE}/binaries/revision"
+
+# The image that boots from memory, in the form kexec starts it on the running extender
+# (try.sh): the kernel as the boot loader leaves it unpacked in memory, with the device tree
+# right after it, where the kernel looks for it, in an ELF file that loads both at the
+# kernel's address and starts the kernel at its entry point
+KDIR="$(ls -d build_dir/target-*/linux-ramips_mt7620)"
+TOOLS="$(cd staging_dir/toolchain-*/bin && pwd)"
+symbol() {
+	"${TOOLS}"/*-openwrt-linux-nm "${KDIR}/vmlinux-initramfs.debug" | awk -v s="$1" '$3 == s { print $1 }'
+}
+TEXT="$(symbol _text)"
+ENTRY="$(symbol kernel_entry)"
+DTB_AT="$(symbol __appended_dtb)"
+if [ $((0x${TEXT} + $(stat -c %s "${KDIR}/vmlinux-initramfs"))) -ne $((0x${DTB_AT})) ]; then
+	echo "The kernel does not end where it looks for its device tree; no image for kexec" >&2
+	exit 1
+fi
+KEXEC_TMP="$(mktemp -d)"
+cat "${KDIR}/vmlinux-initramfs" "${KDIR}"/image-*.dtb > "${KEXEC_TMP}/kernel.bin"
+cat > "${KEXEC_TMP}/kernel.ld" << EOF
+OUTPUT_FORMAT("elf32-tradlittlemips")
+OUTPUT_ARCH(mips)
+PHDRS { image PT_LOAD FLAGS(7); }
+SECTIONS
+{
+	. = 0x${TEXT};
+	.image : { *(.data) } :image
+	/DISCARD/ : { *(*) }
+}
+EOF
+(cd "${KEXEC_TMP}" && "${TOOLS}"/*-openwrt-linux-ld -T kernel.ld -b binary kernel.bin \
+	-e "0x${ENTRY}" -o "${HERE}/binaries/${NAME}-initramfs-kexec.elf")
+rm -rf "${KEXEC_TMP}"
+
 cd "${HERE}/binaries"
-sha256sum "${NAME}"*.bin > sha256sums
+sha256sum "${NAME}"*.bin "${NAME}"*.elf > sha256sums
 echo "OpenWrt ${REVISION}"
 ls -l "${NAME}"*
