@@ -195,9 +195,10 @@ From TP-Link's firmware, in its web page (tried with firmware 2.0.5, Build 20240
 
 1. Open the extender's web page, at `http://tplinkplc.net` or the address the main router
    gave it, log in, and go to **System Tools > Firmware Upgrade**.
-2. Click **Browse**, choose `openwrt-ramips-mt7620-tplink_tl-wpa7510-v2-squashfs-factory.bin`
-   from `binaries/`, click **Upgrade** and confirm. **Keep the file name short**: the web page drops
-   an upload whose file name has 69 characters or more, and then says "Wrong file". OpenWrt's
+2. Click **Browse**, choose
+   `openwrt-ramips-mt7620-tplink_tl-wpa7510-v2-squashfs-factory.bin` from `binaries/`,
+   click **Upgrade** and confirm. **Keep the file name short**: the web page drops an
+   upload whose file name has 69 characters or more, and then says "Wrong file". OpenWrt's
    name for the image has 63; OpenWrt's release images, named `openwrt-<version>-ramips-…`,
    have to be renamed first.
 3. The extender writes the image and restarts into OpenWrt, a few minutes in all. It comes
