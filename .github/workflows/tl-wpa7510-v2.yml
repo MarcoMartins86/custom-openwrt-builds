@@ -1,0 +1,71 @@
+# Builds the TL-WPA7510 v2 image in OpenWrt's SDK container, from the fork's commit and with
+# the public settings in .env. On every pull request and every change to main that touches
+# the build. It uses no secrets: the image to flash, with the settings in private/.env, is
+# built on your own machine.
+name: TL-WPA7510 v2
+
+on:
+  pull_request:
+    paths:
+      - "tl-wpa7510-v2/**"
+      - ".github/workflows/tl-wpa7510-v2.yml"
+  push:
+    branches: [main]
+    paths:
+      - "tl-wpa7510-v2/**"
+      - ".github/workflows/tl-wpa7510-v2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-26.04
+    # Everything is compiled, the toolchain first, on the runner's four cores
+    timeout-minutes: 240
+    defaults:
+      run:
+        working-directory: tl-wpa7510-v2
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read the source's commit
+        id: source
+        run: echo "commit=$(sed -n 's/^OPENWRT_COMMIT=//p' .env)" >> "$GITHUB_OUTPUT"
+
+      # The source archives an earlier run downloaded for the same commit. The build checks
+      # each against the checksum in OpenWrt's source. GitHub drops a cache that has not
+      # been used for a week.
+      - name: Restore the source downloads
+        uses: actions/cache@v6
+        with:
+          path: tl-wpa7510-v2/dl
+          key: tl-wpa7510-v2-dl-${{ steps.source.outputs.commit }}-${{ hashFiles('tl-wpa7510-v2/openwrt.config') }}
+          restore-keys: tl-wpa7510-v2-dl-
+
+      - name: Build
+        # The SDK container runs as user 1000, the runner as someone else, so the container
+        # clones the source into openwrt/ itself: git refuses to work in a folder another
+        # user owns. The runner's disk is too small for a whole build that keeps every
+        # package's build files.
+        env:
+          AUTOREMOVE: 1
+        run: |
+          mkdir -p binaries dl
+          chmod -R a+rwX binaries dl
+          chmod a+rwx .
+          docker compose run --rm builder
+
+      # The package list, to see what a newer commit changed
+      - name: Keep the manifest
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tl-wpa7510-v2-manifest
+          path: tl-wpa7510-v2/binaries/*.manifest
+          if-no-files-found: ignore

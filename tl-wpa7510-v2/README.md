@@ -84,9 +84,11 @@ listing every package and version that went in:
 
 > **Note** The images hold the Wi-Fi password and the SSH host key. Do not hand them out.
 
-`JOBS` sets how many jobs run at once, one per core by default, `AUTOREMOVE=1` deletes each
-package's build files once it is built, for a machine short of disk space, and `NO_TRIM=1`
-keeps all the kernel's exports.
+The container runs as user 1000. If that is not you, give it the folders first with
+`mkdir -p binaries dl openwrt private && chown 1000 binaries dl openwrt private`. `JOBS` sets
+how many jobs run at once, one per core by default, `AUTOREMOVE=1` deletes each package's
+build files once it is built, for a machine short of disk space, and `NO_TRIM=1` keeps all
+the kernel's exports.
 
 ## Settings
 
@@ -160,6 +162,18 @@ Measured and left out, each on its own:
 | No process sandboxing (ujail, seccomp, namespaces) | 103 KB | ntpd and hostapd run without it |
 | Squashfs blocks of 1 MB instead of 256 KB | 75 KB | A few MB of memory for the blocks the kernel keeps unpacked |
 | Kernel without traffic control | 11 KB | fq_codel on the Ethernet side |
+
+## Checks and updates
+
+Every pull request and every change to `main` that touches this folder is built on GitHub in
+the SDK container, with the settings in `.env`
+([tl-wpa7510-v2.yml](../.github/workflows/tl-wpa7510-v2.yml)). That build uses no secrets, so
+its image has none of the private settings; the image to flash is built on your own machine
+as above. The run keeps the image's package list.
+
+The build is pinned to a commit of the fork, so two builds of it are the same. To move to a
+newer one, put its commit into `OPENWRT_COMMIT`; once OpenWrt supports the device, the build
+can move to OpenWrt's own source and releases.
 
 ## Flash
 
