@@ -1,0 +1,31 @@
+# The Wi-Fi networks, one per radio with the same name and password, bridged with the
+# powerline: WPA2 with the password from private/.env, switched off when the image was
+# built without one
+. /etc/build.env
+# The radios' settings are made when their drivers announce them, which can still be on
+# the way. The drivers are loaded by now, so ask for them here in case.
+uci -q get wireless.radio1 > /dev/null || wifi config
+WIFI_KEY=""
+[ -f /etc/wifi.env ] && . /etc/wifi.env
+rm -f /etc/wifi.env
+for radio in $(uci show wireless | sed -n "s/^wireless\.\([^.]*\)=wifi-device$/\1/p"); do
+	case "$(uci -q get "wireless.${radio}.band")" in
+		2g) channel="${WIFI_CHANNEL_2G}" htmode=HT20 ;;
+		5g) channel="${WIFI_CHANNEL_5G}" htmode="${WIFI_HTMODE_5G}" ;;
+		*) continue ;;
+	esac
+	iface="default_${radio}"
+	uci -q batch << EOI
+set wireless.${radio}.country='${WIFI_COUNTRY}'
+set wireless.${radio}.channel='${channel}'
+set wireless.${radio}.htmode='${htmode}'
+set wireless.${iface}.network='lan'
+set wireless.${iface}.mode='ap'
+set wireless.${iface}.encryption='psk2'
+set wireless.${iface}.disabled='$([ -n "${WIFI_KEY}" ] && echo 0 || echo 1)'
+EOI
+	# Given apart, as either can hold characters the batch above would trip on
+	uci set "wireless.${iface}.ssid=${WIFI_SSID}"
+	[ -n "${WIFI_KEY}" ] && uci set "wireless.${iface}.key=${WIFI_KEY}"
+done
+uci commit wireless
