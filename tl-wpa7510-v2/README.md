@@ -38,7 +38,7 @@ The inputs are all in this folder:
 | `openwrt.config` | OpenWrt's build configuration, as far as it differs from the device's defaults: the packages left out, and the options of the kernel, Wi-Fi, SSH and command-line tools |
 | `kernel.config` | Kernel options on top of those OpenWrt builds the device's kernel with |
 | `patches/` | Changes to OpenWrt's source: IPv6 made optional again |
-| `kernel-patches/` | Fixes for the kernel, added to OpenWrt's own: without the kexec one, starting another kernel with kexec ends in a kernel BUG |
+| `kernel-patches/` | Fixes for the kernel, added to OpenWrt's own: without them, starting another kernel with kexec ends in a kernel BUG, or the new kernel can hang at its start |
 | `ksyms-keep.txt` | The kernel exports the image's modules use, which the kernel keeps; it drops the rest. `ksyms.sh` makes it from a build's modules |
 | `files/` | Files copied into the image: the first-boot scripts |
 | `private/files/` | The same, for files that should not be public: the SSH keys allowed in, and the extender's host key, which the first build makes. Not in the repo |
@@ -207,6 +207,11 @@ running from memory. Once it works, `./flash.sh` flashes the image from there; a
 power cut brings back the image on the flash instead. It needs an image with kexec on the
 flash, which images from this folder have.
 
+An image that hangs before it is up does not need a power cut either: the kernel keeps the
+watchdog running through kexec (`watchdog.stop_on_reboot=0` in `kernel.config`), and with
+nothing to feed it, the watchdog restarts the extender into the flashed image after about half
+a minute.
+
 What this cannot try is the way from the flash: the boot loader starting the kernel from it,
 and the root file system and settings on it. These only change with the device's partitions,
 its image recipe or a much bigger kernel, but a flash that does not boot can only be recovered
@@ -304,6 +309,12 @@ an install from the web page, which changes it.
   kernel copies it into kernel text, and the kernel's hardened copies from user space stop
   that with a kernel BUG on the first `kexec -l`. `kernel-patches/331-…` copies it through a
   buffer of its own.
+- **kexec and the caches**: the old kernel still runs a few functions after it has flushed its
+  caches, and the code that copies the new kernel over it jumps to it without flushing them
+  again, so the new kernel can run stale instructions of the old one where both have code at
+  the same address. It does that as early as `boot_cpu_init()`, and hangs before it prints
+  anything when its layout differs there, as it does between versions. `kernel-patches/332-…`
+  syncs each copied page with the instruction cache.
 - **The boot crash**: the MT7620's processor core can return from an interrupt to a wrong
   address when the kernel runs code in its first 32 KB, which OpenWrt's kernels for this
   chip did at the time of writing. The fork keeps the kernel's code out of there.
