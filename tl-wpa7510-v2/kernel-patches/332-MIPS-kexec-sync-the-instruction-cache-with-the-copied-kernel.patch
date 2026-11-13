@@ -1,0 +1,56 @@
+From: Marco Martins <marcomartins86@gmail.com>
+Subject: [PATCH] MIPS: kexec: sync the instruction cache with the copied kernel
+
+machine_kexec() flushes the caches and then calls kexec_reboot(), which
+still runs set_cpu_online() and local_flush_icache_range() before it
+jumps to the relocation code, so their lines stay valid in the
+instruction cache. The relocation code copies the new kernel over the
+old one and jumps to it without touching the caches (except on Octeon),
+so where both kernels have code at the same address the new kernel can
+run stale lines of the old one. It calls set_cpu_online() itself in
+boot_cpu_init(), before it prints anything, and hangs there when its
+copy sits at a different address than the old kernel's.
+
+On R2 and later, write each copied page back from the data cache and
+drop it from the instruction cache with SYNCI, and jump to the new
+kernel with JR.HB.
+
+Signed-off-by: Marco Martins <marcomartins86@gmail.com>
+---
+--- a/arch/mips/kernel/relocate_kernel.S
++++ b/arch/mips/kernel/relocate_kernel.S
+@@ -65,8 +65,21 @@
+ 	PTR_ADDIU	s4, s4, SZREG
+ 	PTR_ADDIU	s2, s2, SZREG
+ 	LONG_ADDIU	s6, s6, -1
+-	beq		s6, zero, process_entry
++	beq		s6, zero, 2f
+ 	b		copy_word
++2:
++#if MIPS_ISA_REV >= 2
++	/* the old kernel's code may still be cached at the page's address */
++	rdhwr		t0, $1
++	beqz		t0, process_entry
++	li		t1, (1 << _PAGE_SHIFT)
++	PTR_SUBU	t1, s4, t1
++3:	synci		0(t1)
++	PTR_ADDU	t1, t1, t0
++	sltu		t2, t1, s4
++	bnez		t2, 3b
++#endif
++	b		process_entry
+ 
+ done:
+ #ifdef CONFIG_SMP
+@@ -97,7 +110,11 @@
+ 	sync
+ #endif
+ 	/* jump to kexec_start_address */
++#if MIPS_ISA_REV >= 2
++	jr.hb		s1
++#else
+ 	j		s1
++#endif
+ 	END(kexec_relocate_new_kernel)
+ 
+ #ifdef CONFIG_SMP
