@@ -18,9 +18,10 @@ What the extender does once flashed:
 |---|---|---|
 | Network | The Ethernet socket, the powerline and both Wi-Fi networks are one bridge in the main router's network, which hands out the addresses, so the devices on it show up there like any other. The extender itself is at `192.168.2.4/24`, with `192.168.2.1` as gateway and DNS. No DHCP or DNS server, no firewall, no IPv6 | `99-uci_config` |
 | Wi-Fi | The same network on both radios, with WPA2: 2.4 GHz at 20 MHz and 5 GHz at 80 MHz, on the channels set in `.env` | `99-wifi_config` |
-| Powerline | `bcmplcd` loads the chip at every start, from the chip's partitions on the flash, which hold the pairing made with the stock firmware. The pair button pairs anew | the fork's `bcmplcd` |
+| Powerline | `bcmplcd` loads the chip at every start, from the chip's partitions on the flash, which hold the pairing made with the stock firmware. The pair button pairs anew, and `bcmplcd` keeps the new pairing | the fork's `bcmplcd` |
+| Buttons and LEDs | As on TP-Link's firmware: pairing and leaving the powerline network, all LEDs off and on, Wi-Fi off and on, restart and factory reset, see [Good to know](#good-to-know) | the fork's `bcmplcd` and board files |
 | Access | SSH with keys only, and a host key that comes with the image | `99-uci_config`, `build.sh` |
-| Settings | Kept on the flash as usual, but `flash.sh` starts every flash from the image's settings | `flash.sh` |
+| Settings | Kept on the flash as usual, but `flash.sh` starts every flash from the image's settings, keeping only a powerline pairing | `flash.sh` |
 | Updates | A new image can run from memory first, started by kexec from the running one over SSH, and go to the flash once it works: no serial port needed | `try.sh`, `flash.sh` |
 
 The scripts are in [files/etc/uci-defaults](files/etc/uci-defaults). OpenWrt runs each of them
@@ -153,9 +154,10 @@ measured on the device's branch, in bytes:
 | Kernel exports kept only for the image's modules (`ksyms-keep.txt`); command-line tools nothing uses; SSH with Ed25519 only and without its client; no urngd | −219,096 | −48,636 |
 | No package manager, and with it no TLS library; no IPv6; hostapd-mini, WPA2 only | −150,553 | −540,788 |
 | kexec, to try an image from memory before flashing it ([Try an image first](#try-an-image-first)) | +2,705 | +63,596 |
-| **The image now** | **1,976,912** | **2,267,980** |
+| Buttons and LEDs as on TP-Link's firmware, and more `bcmplc` commands; the kernel only differs from one build to the next | −268 | +2,588 |
+| **The image now** | **1,976,644** | **2,270,568** |
 
-That leaves 1,849,956 bytes, 1.8 MB, for the settings.
+That leaves 1,847,636 bytes, 1.8 MB, for the settings.
 
 Measured and left out, each on its own:
 
@@ -190,8 +192,8 @@ For an extender already running OpenWrt:
 It uploads the image, checks it, and upgrades the extender over SSH, then waits for it to
 come back with the image's revision and the host key in `private/known_hosts`. The SSH key
 and known-hosts file come from `private/.env`, see [Settings](#settings). The running
-system's settings are not kept; a pairing made with the pair button since the last flash is
-lost with them, and the chip goes back to the pairing in its flash partition.
+system's settings are not kept, except a powerline pairing made with the pair button: the
+extender stays in the network it paired with, see [Good to know](#good-to-know).
 
 ### Try an image first
 
@@ -205,7 +207,9 @@ It uploads `openwrt-*-initramfs-kexec.elf` and has the running image start it wi
 place of its own kernel, then waits for the extender to come back with the image's revision,
 running from memory. Once it works, `./flash.sh` flashes the image from there; a restart or a
 power cut brings back the image on the flash instead. It needs an image with kexec on the
-flash, which images from this folder have.
+flash, which images from this folder have. An image that already runs from memory leaves too
+little memory for the next one, so `try.sh` restarts the extender into the flashed image
+first. The image it starts gets a copy of the powerline pairing, which `flash.sh` then keeps.
 
 An image that hangs before it is up does not need a power cut either: the kernel keeps the
 watchdog running through kexec (`watchdog.stop_on_reboot=0` in `kernel.config`), and with
@@ -298,8 +302,26 @@ an install from the web page, which changes it.
   firmware, and until `bcmplcd` has sent it, the Ethernet socket and the powerline carry
   nothing, although the socket shows a link. The chip keeps running across a restart of the
   extender.
-- **Pairing**: the pair button starts a pairing with another adapter, and a second press
-  ends it; `bcmplc status` shows how it went, and `bcmplc info` the adapters in the network.
+- **Buttons**, as on TP-Link's firmware:
+  - pair: a short press starts a pairing with another adapter, while the power LED blinks,
+    and a second press ends it. Held for 6 seconds, the extender leaves its powerline network
+    for one of its own. All LEDs blink once when either changed the network.
+  - LED: all five LEDs off and on, and the setting stays after a restart.
+  - Wi-Fi: both radios off and on.
+  - reset: a short press restarts the extender; held for 5 seconds, it goes back to the
+    image's settings.
+- **Pairing**: a press of the pair button on two adapters joins them. Two adapters that are in
+  the same network already both wait for a third, and their pairing times out: to pair them
+  anew, one leaves first. Pairing and leaving give the network a new key, which `bcmplcd`
+  keeps in `/etc/bcmplcd/param`. `flash.sh` keeps that file, but going back to the image's
+  settings with the reset button drops it, and the chip takes the pairing in its flash
+  partition again at its next start, after a power cut: pair it again then.
+- **`bcmplc`** talks to the chip: `info` (the adapters in the network and their rates),
+  `status` (of the last pairing), `eth` (the link of the Ethernet socket, which is on the
+  chip, out of Linux's sight), `led [<mac>] [on|off]` (the LEDs of the chip or of another
+  adapter; switching them restarts that adapter), `name <name>` (a network key from a network
+  name, the same on every adapter set to that name), `key`, `leave`, `pair`, `cancel` and
+  `restart`.
 - **No LuCI and no package manager**: everything comes with a new image.
 - **kexec and the device tree**: the kernel looks for its device tree right after its own end,
   where the image recipe puts it, and the kernel here has no other way for kexec to hand one

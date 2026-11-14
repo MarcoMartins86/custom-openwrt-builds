@@ -4,8 +4,9 @@
 # at its address in LAN_ADDRESS, running the image's revision.
 #
 # The settings of the running system are not kept: every setting comes with the image, the
-# SSH host key too, which private/known_hosts holds. The running system can also be the
-# image that boots from memory, which is how the first flash goes; see the README.
+# SSH host key too, which private/known_hosts holds. Only a powerline pairing made with the
+# pair button is kept. The running system can also be the image that boots from memory,
+# which is how the first flash goes; see the README.
 # https://openwrt.org/docs/guide-user/installation/generic.sysupgrade
 #
 # usage: flash.sh [-y] [image.bin]
@@ -78,8 +79,18 @@ if [ -z "${YES}" ]; then
 	[ "${answer}" = "y" ] || { echo "not flashed"; exit 1; }
 fi
 
+# A pairing made with the pair button gives the powerline network a new key, which bcmplcd
+# keeps in /etc/bcmplcd/param; the chip's partition on the flash still holds the old one. The
+# chip asks for it at its next start, after a power cut, and without the file it would be
+# back in its old network, away from the adapters it paired with. So that file stays.
+KEEP="-n"
+if router '[ -s /etc/bcmplcd/param ] && tar -czf /tmp/keep.tgz -C / etc/bcmplcd/param'; then
+	echo "Keeping the powerline pairing"
+	KEEP="-f /tmp/keep.tgz"
+fi
+
 # The connection drops when the upgrade starts, so a failure here is expected
-router "sysupgrade -v -n /tmp/firmware.bin" || true
+router "sysupgrade -v ${KEEP} /tmp/firmware.bin" || true
 
 # Back once it runs the image's revision and the first-boot scripts are done. The image
 # takes the key, over connections of its own, and has to show the host key the build gave
