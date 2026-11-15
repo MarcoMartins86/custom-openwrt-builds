@@ -38,7 +38,7 @@ The inputs are all in this folder:
 | `openwrt.config` | OpenWrt's build configuration, as far as it differs from the device's defaults: the packages left out, and the options of the kernel, Wi-Fi, SSH and command-line tools |
 | `kernel.config` | Kernel options on top of those OpenWrt builds the device's kernel with |
 | `patches/` | Changes to OpenWrt's source: IPv6 made optional again |
-| `kernel-patches/` | Fixes for the kernel, added to OpenWrt's own: without the phylink one, 25.12.6 sets up none of the switch's ports; without the bridge one, netifd makes no bridge in this kernel |
+| `kernel-patches/` | Fixes for the kernel, added to OpenWrt's own: without the phylink one, 25.12.6 sets up none of the switch's ports; without the bridge one, netifd makes no bridge in this kernel. Those in `hack/` change one of OpenWrt's own kernel hacks and go after them: the module guard keeps module code where an erratum of the CPU cannot hit it |
 | `ksyms-keep.txt` | The kernel exports the image's modules use, which the kernel keeps; it drops the rest. `ksyms.sh` makes it from a build's modules |
 | `files/` | Files copied into the image, mainly the first-boot scripts |
 | `private/files/` | The same, for files that should not be public: the SSH keys allowed in, and the access point's host key, which the first build makes. Not in the repo |
@@ -337,6 +337,13 @@ new release. What worked on a v3:
   for filtering off on every bridge it makes, and such a kernel refused even that. The access
   point then has no address, and its Wi-Fi accepts clients that can reach nothing. The Malta
   tests miss this, as they boot OpenWrt's Malta kernel, which has VLAN filtering.
+- **Module code and the CPU**: the AR9132's 24Kc core can save a wrong return address for an
+  interrupt taken at the target of a jump in the first 32 KB of a 256 MB segment, and the
+  kernel then fails. `kernel-patches/hack/301-03-…` keeps the code of modules out of those
+  places. On this access point the kernel's own boot data fills the first 320 KB of memory,
+  so it mainly guards a module that gets no contiguous memory and goes to the vmalloc area,
+  which starts at a segment too. It is the patch written for OpenWrt's 6.18 kernel, which
+  applies to this one unchanged; drop it once OpenWrt has it.
 - **No LuCI**: there is no room for it. Settings change with a new image; a change over SSH
   with `uci` lasts until the next restart.
 - **No package manager**: everything comes with a new image.
