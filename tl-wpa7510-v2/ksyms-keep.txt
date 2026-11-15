@@ -37,6 +37,8 @@ __kmalloc_cache_noprof
 __kmalloc_large_noprof
 __kmalloc_noprof
 __kvmalloc_node_noprof
+__list_add_valid_or_report
+__list_del_entry_valid_or_report
 __local_bh_enable_ip
 __lshrdi3
 __msecs_to_jiffies
