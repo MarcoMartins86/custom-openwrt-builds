@@ -94,11 +94,16 @@ else
 	echo "CONFIG_UNUSED_KSYMS_WHITELIST=\"${HERE}/ksyms-keep.txt\"" >> "${KERNEL_CONFIG}"
 fi
 cat "${KERNEL_CONFIG}" >> "${SRC}/target/linux/ath79/tiny/config-default"
-# Fixes for the kernel join OpenWrt's own pending kernel patches. The copies from an earlier
-# build are the only files there that are not OpenWrt's, and go first.
-PENDING="${SRC}/target/linux/generic/pending-$(sed -n 's/^KERNEL_PATCHVER:=//p' "${SRC}/target/linux/ath79/Makefile")"
-git -C "${SRC}" clean -fq -- "${PENDING}"
+# Fixes for the kernel join OpenWrt's own pending kernel patches. Those in
+# kernel-patches/hack/ change one of OpenWrt's kernel hacks, so they join the hacks, which
+# come after. The copies from an earlier build are the only files there that are not
+# OpenWrt's, and go first.
+KERNEL_VERSION="$(sed -n 's/^KERNEL_PATCHVER:=//p' "${SRC}/target/linux/ath79/Makefile")"
+PENDING="${SRC}/target/linux/generic/pending-${KERNEL_VERSION}"
+HACK="${SRC}/target/linux/generic/hack-${KERNEL_VERSION}"
+git -C "${SRC}" clean -fq -- "${PENDING}" "${HACK}"
 cp "${HERE}"/kernel-patches/*.patch "${PENDING}/"
+cp "${HERE}"/kernel-patches/hack/*.patch "${HACK}/"
 
 # Every package comes from OpenWrt's own tree, so the package feeds are left out
 mkdir -p "${HERE}/dl"
