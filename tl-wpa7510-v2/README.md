@@ -155,9 +155,10 @@ measured on the device's branch, in bytes:
 | No package manager, and with it no TLS library; no IPv6; hostapd-mini, WPA2 only | −150,553 | −540,788 |
 | kexec, to try an image from memory before flashing it ([Try an image first](#try-an-image-first)) | +2,705 | +63,596 |
 | Buttons and LEDs as on TP-Link's firmware, and more `bcmplc` commands; the kernel only differs from one build to the next | −268 | +2,588 |
-| **The image now** | **1,976,644** | **2,270,568** |
+| Failsafe starts the powerline chip with the pairing kept with the settings | +12 | +140 |
+| **The image now** | **1,976,656** | **2,270,708** |
 
-That leaves 1,847,636 bytes, 1.8 MB, for the settings.
+That leaves 1,847,484 bytes, 1.8 MB, for the settings.
 
 Measured and left out, each on its own:
 
@@ -251,10 +252,34 @@ for p in $(ssh root@192.168.2.4 "sed -n 's/^\(mtd[0-9]*\):.*/\1/p' /proc/mtd"); 
 done
 ```
 
+### Failsafe
+
+When the image starts but its settings keep you out, with a wrong address or SSH key for
+instance, OpenWrt's failsafe mode starts it without them:
+
+1. Put this machine on the extender's Ethernet socket, with an address in `192.168.1.0/24`
+   such as `192.168.1.2` and no gateway, and off Wi-Fi: many ISP modems are `192.168.1.1`
+   too, and traffic that leaves another way reaches the modem instead.
+2. Restart the extender, or power it on. When the power LED blinks quickly, five times a
+   second for 4 seconds, press any button, the LED button for instance. After a power cut
+   that is 10 to 15 seconds after power-on; pressing once a second from then on works too.
+   The power LED then blinks twice as fast and keeps blinking.
+3. `ssh root@192.168.1.1`, with the SSH key of the build. Failsafe makes a new host key at
+   every start, so SSH says it changed.
+
+There, `mount_root` brings the settings in for a look or a fix, `firstboot -y` followed by
+`reboot` goes back to the image's settings, as the reset button does, and `reboot` alone
+leaves failsafe.
+
+The powerline chip starts with the parameters kept with the settings, a pairing made with the
+pair button included, so after a power cut the extender is back in its powerline network, and
+failsafe answers from the rest of the network too. When the settings cannot be read, the chip
+takes the pairing in its flash partition.
+
 ### Recovery
 
-When a flash does not boot, the boot loader can boot the image from memory, but only over
-the serial port: nothing in it checks a button. It needs a 3.3 V USB serial adapter.
+When a flash does not boot at all, the boot loader can boot the image from memory, but only
+over the serial port: nothing in it checks a button. It needs a 3.3 V USB serial adapter.
 
 1. The serial port is four pads in a row on the board: TX, RX, GND, 3.3 V. Wire the
    adapter's RXD to TX, its TXD to RX and GND to GND, and leave 3.3 V unconnected. 115200
