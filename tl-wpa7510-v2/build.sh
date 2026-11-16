@@ -167,7 +167,7 @@ make -j"${JOBS}" || {
 }
 
 KCONFIG="$(ls build_dir/target-*/linux-ramips_mt7620/linux-*/.config)"
-MISSING="$(config_missing "${HERE}/kernel.config" "${KCONFIG}")"
+MISSING="$(config_missing "${KERNEL_CONFIG}" "${KCONFIG}")"
 [ -z "${MISSING}" ] || { printf "The kernel left out of kernel.config:\n%s\n" "${MISSING}" >&2; exit 1; }
 
 # Kernel and root file system share the 5,952 KB firmware partition; OpenWrt makes no image

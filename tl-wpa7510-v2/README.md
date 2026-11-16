@@ -156,9 +156,10 @@ measured on the device's branch, in bytes:
 | kexec, to try an image from memory before flashing it ([Try an image first](#try-an-image-first)) | +2,705 | +63,596 |
 | Buttons and LEDs as on TP-Link's firmware, and more `bcmplc` commands; the kernel only differs from one build to the next | −268 | +2,588 |
 | Failsafe starts the powerline chip with the pairing kept with the settings | +12 | +140 |
-| **The image now** | **1,976,656** | **2,270,708** |
+| The fix for the boot crash in its reviewed form: most of the memory before the kernel's code given back, module code kept out of such places too, the old workarounds dropped, list checks back on ([Good to know](#good-to-know)) | +13,141 | +2,568 |
+| **The image now** | **1,989,797** | **2,273,276** |
 
-That leaves 1,847,484 bytes, 1.8 MB, for the settings.
+That leaves 1,831,775 bytes, 1.8 MB, for the settings.
 
 Measured and left out, each on its own:
 
@@ -364,4 +365,7 @@ an install from the web page, which changes it.
   syncs each copied page with the instruction cache.
 - **The boot crash**: the MT7620's processor core can return from an interrupt to a wrong
   address when the kernel runs code in its first 32 KB, which OpenWrt's kernels for this
-  chip did at the time of writing. The fork keeps the kernel's code out of there.
+  chip did at the time of writing. The fork keeps the kernel's code out of there, gives
+  most of that memory back, and keeps the code of modules out of such places too. With
+  that, the kernel's list checks (`LIST_HARDENED`), which OpenWrt turned off for this chip
+  after these crashes, are on again.
