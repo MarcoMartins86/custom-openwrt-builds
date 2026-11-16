@@ -1,0 +1,17 @@
+From: Marco Martins
+Subject: b43: download firmware 784.2 from SourceForge
+
+lwfinger.com, where OpenWrt fetches the 6.30.163.46 driver that firmware 784.2
+comes from, is gone. The b43-firmware project on SourceForge has the same file.
+---
+--- a/package/kernel/mac80211/broadcom.mk
++++ b/package/kernel/mac80211/broadcom.mk
+@@ -40,7 +40,7 @@
+   PKG_B43_FWV4_VERSION:=6.30.163.46
+   PKG_B43_FWV4_OBJECT:=$(PKG_B43_FWV4_NAME)-$(PKG_B43_FWV4_VERSION).wl_apsta.o
+   PKG_B43_FWV4_SOURCE:=$(PKG_B43_FWV4_NAME)-$(PKG_B43_FWV4_VERSION).tar.bz2
+-  PKG_B43_FWV4_SOURCE_URL:=http://www.lwfinger.com/b43-firmware/
++  PKG_B43_FWV4_SOURCE_URL:=@SF/b43-firmware
+   PKG_B43_FWV4_HASH:=a07c3b6b277833c7dbe61daa511f908cd66c5e2763eb7a0859abc36cd9335c2d
+ else
+ ifneq ($(CONFIG_B43_FW_5_10),)
