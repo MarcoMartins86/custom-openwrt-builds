@@ -1,0 +1,19 @@
+From: Marco Martins
+Subject: b43: select the kernel's page pool
+
+The b43 receive path of mac80211-patches/brcm takes its buffers from a page
+pool (856). KERNEL_PAGE_POOL has no prompt, so only a package that depends on
+it can switch it on.
+---
+diff --git a/package/kernel/mac80211/broadcom.mk b/package/kernel/mac80211/broadcom.mk
+--- a/package/kernel/mac80211/broadcom.mk
++++ b/package/kernel/mac80211/broadcom.mk
+@@ -102,7 +102,7 @@
+   	CONFIG_HW_RANDOM=y
+   # Depend on PCI_SUPPORT to make sure we can select kmod-bcma or kmod-ssb
+   DEPENDS += \
+-	@PCI_SUPPORT +kmod-mac80211 \
++	@PCI_SUPPORT +kmod-mac80211 +@KERNEL_PAGE_POOL \
+ 	+PACKAGE_B43_PHY_N:kmod-lib-cordic +PACKAGE_B43_PHY_LP:kmod-lib-cordic \
+ 	$(if $(CONFIG_PACKAGE_B43_USE_SSB),+kmod-ssb) \
+ 	$(if $(CONFIG_PACKAGE_B43_USE_BCMA),+kmod-bcma)

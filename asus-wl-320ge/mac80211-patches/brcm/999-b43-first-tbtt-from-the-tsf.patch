@@ -27,10 +27,12 @@ interval. Stations in power save wake up at the TBTTs for the beacon.
 
 Start at the next TBTT from the TSF instead, as ath5k does.
 ---
+diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
+index 5e9b7da..6139d1c 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
-@@ -1856,10 +1856,22 @@
-
+@@ -1989,10 +1989,22 @@ static void b43_update_templates(struct b43_wl *wl)
+ 
  static void b43_set_beacon_int(struct b43_wldev *dev, u16 beacon_int)
  {
 +	u64 tsf;

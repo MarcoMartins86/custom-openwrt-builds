@@ -12,9 +12,11 @@ held frames grew by about 2 a second, and the uplink stopped answering.
 Drop such a frame instead, as mac80211 does when it buffers these frames
 itself, and stop no queue for the multicast ring.
 ---
+diff --git a/drivers/net/wireless/broadcom/b43/dma.c b/drivers/net/wireless/broadcom/b43/dma.c
+index fefd7fe..46040c5 100644
 --- a/drivers/net/wireless/broadcom/b43/dma.c
 +++ b/drivers/net/wireless/broadcom/b43/dma.c
-@@ -1348,6 +1348,15 @@
+@@ -1439,6 +1439,15 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
  	if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
  		/* The multicast ring will be sent after the DTIM */
  		ring = dev->dma.tx_ring_mcast;
@@ -23,22 +25,22 @@ itself, and stop no queue for the multicast ring.
 +		 * would stop all of its traffic and leave mac80211 holding
 +		 * every frame for it. mac80211 drops them too when it
 +		 * buffers them itself. */
-+		if (free_slots(ring) < TX_SLOTS_PER_FRAME) {
++		if (free_slots(ring) < tx_slots_per_frame(ring)) {
 +			ieee80211_free_txskb(dev->wl->hw, skb);
 +			return 0;
 +		}
  		/* Set the more-data bit. Ucode will clear it on
  		 * the last frame for us. */
  		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
-@@ -1395,8 +1404,9 @@
+@@ -1486,8 +1495,9 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
  		b43err(dev->wl, "DMA tx mapping failure\n");
  		goto out;
  	}
--	if ((free_slots(ring) < TX_SLOTS_PER_FRAME) ||
+-	if ((free_slots(ring) < tx_slots_per_frame(ring)) ||
 -	    should_inject_overflow(ring)) {
 +	if (ring != dev->dma.tx_ring_mcast &&
-+	    ((free_slots(ring) < TX_SLOTS_PER_FRAME) ||
++	    ((free_slots(ring) < tx_slots_per_frame(ring)) ||
 +	     should_inject_overflow(ring))) {
  		/* This TX ring is full. */
- 		unsigned int skb_mapping = skb_get_queue_mapping(skb);
+ 		unsigned int skb_mapping = b43_tx_queue_num(dev, skb);
  		b43_stop_queue(dev, skb_mapping);
