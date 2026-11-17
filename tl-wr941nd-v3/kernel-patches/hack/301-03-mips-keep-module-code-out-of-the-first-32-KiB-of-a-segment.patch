@@ -11,18 +11,19 @@ AR9132 and a QCA9531, though not on the 24KEc of an MT7628.
 
 The module allocator above runs module and BPF JIT code from the KSEG0
 address of the pages it gets, and falls back to vmalloc, whose area
-starts at the start of a segment as well. On a 24K core, keep that code
-out of the first 32 KiB of both: hold the blocks the page allocator
-offers there and ask again, and take the vmalloc fallback from the rest
-of the first segment of its area. module_finalize() warns if module
-code starts there all the same.
+starts at the start of a segment as well. On the 24K cores known to
+have the fault, those with a PRId below 0x00019655 (every 24Kc, and the
+24KEc before V5.5), keep that code out of the first 32 KiB of both: hold
+the blocks the page allocator offers there and ask again, and take the
+vmalloc fallback from the rest of the first segment of its area.
+module_finalize() warns if module code starts there all the same.
 
 Co-developed-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
 Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
 Signed-off-by: Marco Martins <marcomartins86@gmail.com>
 ---
- arch/mips/kernel/module.c | 53 ++++++++++++++++++++++++++++++++++++---
- 1 file changed, 50 insertions(+), 3 deletions(-)
+ arch/mips/kernel/module.c | 64 +++++++++++++++++++++++++++++++++++---
+ 1 file changed, 61 insertions(+), 3 deletions(-)
 
 --- a/arch/mips/kernel/module.c
 +++ b/arch/mips/kernel/module.c
@@ -32,21 +33,32 @@ Signed-off-by: Marco Martins <marcomartins86@gmail.com>
  #include <linux/jump_label.h>
 +#include <linux/sizes.h>
  #include <linux/vmalloc.h>
-+#include <asm/cpu-type.h>
++#include <asm/cpu-info.h>
  #include <asm/jump_label.h>
  
  struct mips_hi16 {
-@@ -106,18 +108,42 @@ get_plt_size(const Elf_Ehdr *hdr, const
+@@ -106,18 +108,53 @@ get_plt_size(const Elf_Ehdr *hdr, const
  	return ret;
  }
  
 +/*
-+ * MIPS 24K cores can save a wrong EPC for an interrupt at the target of a
-+ * J or JAL in the first 32 KiB of a 256 MiB segment: no code there on them.
++ * 24K cores can save a wrong EPC (bits 31:28) for an interrupt taken at
++ * the target of a J or JAL in the first 32 KiB of a 256 MiB segment. This
++ * is known from tests only: the 24KEc of the MT7620A and RT5350 and the
++ * 24Kc of the AR9132 and QCA9531 show it, the 24KEc V5.5 of the MT7628
++ * did not. The PRId holds the implementation above the revision, so one
++ * comparison takes every 24Kc (0x93xx) and the 24KEc (0x96xx) below V5.5.
 + */
++static bool cpu_has_epc_erratum(void)
++{
++	return boot_cpu_data.cputype == CPU_24K &&
++	       boot_cpu_data.processor_id < 0x00019655;
++}
++
++/* no module code in the first 32 KiB of a segment on such a core */
 +static bool in_first_32k(void *ptr)
 +{
-+	return ptr && boot_cpu_type() == CPU_24K &&
++	return ptr && cpu_has_epc_erratum() &&
 +	       ((unsigned long)ptr & (SZ_256M - 1)) < SZ_32K;
 +}
 +
@@ -81,7 +93,7 @@ Signed-off-by: Marco Martins <marcomartins86@gmail.com>
  	if (!page)
  		return NULL;
  
-@@ -146,6 +172,23 @@ static void free_phys(void *ptr)
+@@ -146,6 +183,23 @@ static void free_phys(void *ptr)
  	} while (free);
  }
  
@@ -94,7 +106,7 @@ Signed-off-by: Marco Martins <marcomartins86@gmail.com>
 +	unsigned long start = PAGE_ALIGN(VMALLOC_START + SZ_32K);
 +	unsigned long end = min(ALIGN(start, SZ_256M), VMALLOC_END);
 +
-+	if (boot_cpu_type() != CPU_24K)
++	if (!cpu_has_epc_erratum())
 +		return vmalloc(size);
 +
 +	return __vmalloc_node_range(size, 1, start, end, GFP_KERNEL,
@@ -105,7 +117,7 @@ Signed-off-by: Marco Martins <marcomartins86@gmail.com>
  void *arch_execmem_alloc(enum execmem_type type,
  			 size_t size)
  {
-@@ -157,7 +200,7 @@ void *arch_execmem_alloc(enum execmem_ty
+@@ -157,7 +211,7 @@ void *arch_execmem_alloc(enum execmem_ty
  	 * fall back to regular vmalloc. The module loader code will
  	 * create jump tables to handle long jumps */
  	if (!ptr)
@@ -114,7 +126,7 @@ Signed-off-by: Marco Martins <marcomartins86@gmail.com>
  
  	return ptr;
  }
-@@ -689,6 +732,10 @@ int module_finalize(const Elf_Ehdr *hdr,
+@@ -689,6 +743,10 @@ int module_finalize(const Elf_Ehdr *hdr,
  		me->arch.virt_plt_tbl = NULL;
  	}
  
