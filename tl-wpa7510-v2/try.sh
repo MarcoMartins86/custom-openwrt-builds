@@ -10,6 +10,9 @@
 # memory. It waits for the extender to come back at its address in LAN_ADDRESS, running the
 # image's revision from memory, with the host key in private/known_hosts.
 #
+# The 5 GHz radio cannot be tried this way: kexec does not reset its chip, and from memory it
+# mostly stays off the air or drops off it. A restart into the flashed image brings it back.
+#
 # usage: try.sh
 # Settings, from private/.env or, taking precedence, from the environment:
 #   ROUTER (the address the extender has now; the one in LAN_ADDRESS by default),
@@ -130,7 +133,8 @@ while [ $(($(date +%s) - start)) -lt 300 ]; do
 	STATE="$(router '. /etc/openwrt_release; echo "${DISTRIB_REVISION} $(ls /etc/uci-defaults | wc -l) $(grep -c " / overlay " /proc/mounts)"' 2> /dev/null || true)"
 	if [ "${STATE}" = "${REVISION} 0 0" ]; then
 		echo "Running from memory after $(($(date +%s) - start)) seconds. ./flash.sh flashes it;"
-		echo "a restart brings back the flashed image."
+		echo "a restart brings back the flashed image. 5 GHz may not work until then, as"
+		echo "kexec does not reset its chip."
 		# bcmplcd reads the file when it starts
 		if [ -s "${PARAM}" ]; then
 			router 'mkdir -p /etc/bcmplcd && umask 077 && cat > /etc/bcmplcd/param &&
