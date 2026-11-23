@@ -223,6 +223,11 @@ and the root file system and settings on it. These only change with the device's
 its image recipe or a much bigger kernel, but a flash that does not boot can only be recovered
 over the serial port (see [Recovery](#recovery)).
 
+Nor can it try the 5 GHz radio. A restart resets the radio's chip; kexec does not, and
+neither does its driver, so the chip goes on from the state the old kernel left it in. In
+most tries the radio then did not come on the air, or dropped off it within a minute or two,
+while OpenWrt showed it as up. A restart into the flashed image brings it back.
+
 ### First flash
 
 From TP-Link's firmware, in its web page (tried with firmware 2.0.5, Build 20240306, EU):
