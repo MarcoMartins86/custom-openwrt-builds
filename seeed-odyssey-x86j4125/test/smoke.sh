@@ -51,6 +51,7 @@ OUT="$(python3 "$Q/ser.py" sh 180 \
 	'[ "'"${IPV6}"'" = 1 ] || grep -q "do-ip6: no" /var/lib/unbound/unbound.conf || f="$f unbound-ipv4"' \
 	'[ "$(uci -q get banip.global.ban_backupdir)" = /mnt/data/banip/backup ] || f="$f banip-backups"' \
 	'[ -z "'"${BANIP_REFRESH_HOUR}"'" ] || grep -q "banip reload" /etc/crontabs/root || f="$f no-banip-refresh"' \
+	'for r in '"${LAN_ADDRESS} ${VPN_ADDRESS}"'; do eval "$(ipcalc.sh $r)"; grep -q "^$NETWORK/$PREFIX " /etc/banip/banip.allowlist || f="$f banip-allowlist"; done' \
 	'A="'"${LETSENCRYPT:+${DDNS_HOST}}"'"; S="'"${ROUTER_NAME}"'.$A"; L='"${LAN_ADDRESS%/*}"'' \
 	'[ -z "$A" ] || { [ "$(uci -q get acme.router.domains)" = "*.$A" ] && [ -L /etc/acme ] && [ -L /etc/ssl/acme ]; } || f="$f acme"' \
 	'[ -z "$A" ] || { nslookup "$S" $L | grep -q "Address.* $L$" && nslookup "$S" '"${VPN_ADDRESS%/*}"' | grep -q "Address.* $L$"; } || f="$f inside-dns"' \

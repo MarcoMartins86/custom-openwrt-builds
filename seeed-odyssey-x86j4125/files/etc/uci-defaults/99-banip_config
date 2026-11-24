@@ -32,3 +32,17 @@ CRON="/etc/crontabs/root"
 if [ -n "${BANIP_REFRESH_HOUR}" ]; then
 	echo "30 ${BANIP_REFRESH_HOUR} * * * /etc/init.d/banip reload" >> "${CRON}"
 fi
+
+# banIP's log monitor blocks an address after a single SSH connection that ends
+# before a login, or a single failed LuCI login. Neither is open on the WAN side,
+# so the addresses it catches are the router's own LAN and VPN devices, and their
+# block does nothing, as banIP only filters the WAN side. The monitor skips the
+# allowlist, which takes both ranges. The allowlist matches the source of inbound
+# traffic and the destination of outbound traffic, so for these ranges it exempts
+# nothing from the blocklists.
+ALLOWLIST="/etc/banip/banip.allowlist"
+for range in "LAN ${LAN_ADDRESS}" "VPN ${VPN_ADDRESS}"; do
+	eval "$(ipcalc.sh "${range#* }")"
+	awk -v net="${NETWORK}/${PREFIX}" '$1 == net { found = 1 } END { exit !found }' "${ALLOWLIST}" 2> /dev/null ||
+		echo "${NETWORK}/${PREFIX} # ${range%% *}" >> "${ALLOWLIST}"
+done
