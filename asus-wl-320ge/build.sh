@@ -46,14 +46,14 @@ case "${RESTART_AT}" in
 	*) echo "RESTART_AT has to be a time like 04:00, or empty" >&2; exit 1 ;;
 esac
 # As a repeater the access point also joins the network it serves, as a client, to reach
-# the internet over Wi-Fi; relayd ties the two together. This needs the Wi-Fi password, and
-# the one radio serves both on the one channel, so WIFI_CHANNEL has to be the upstream's.
+# the internet over Wi-Fi; relayd ties the two together. This needs the Wi-Fi password. The
+# one radio serves both on one channel, which the access point then takes from the uplink.
 if [ "${REPEATER}" = 1 ]; then
 	[ -n "${WIFI_KEY}" ] ||
 		{ echo "REPEATER=1 needs a WIFI_KEY: the uplink joins the Wi-Fi as a client" >&2; exit 1; }
 	if [ -n "${UPLINK_BSSID}" ]; then
 		echo "${UPLINK_BSSID}" | grep -qiE '^([0-9a-f]{2}:){5}[0-9a-f]{2}$' ||
-			{ echo "UPLINK_BSSID has to be a MAC address like b0:95:75:9b:4d:dc" >&2; exit 1; }
+			{ echo "UPLINK_BSSID has to be a MAC address like 00:00:5e:00:53:01" >&2; exit 1; }
 	fi
 fi
 
@@ -178,7 +178,8 @@ if [ -n "${WIFI_KEY}" ]; then
 		> files/etc/hostapd.conf)
 	# The uplink joins the network as a client, the same one unless UPLINK_SSID names
 	# another; relayd forwards the access point's clients to it. A given upstream BSSID
-	# pins it to that one extender.
+	# pins it to that one extender. The access point then runs on the uplink's channel,
+	# from a copy of hostapd.conf that files/usr/sbin/follow-uplink writes.
 	if [ "${REPEATER}" = 1 ]; then
 		(umask 077; { printf 'network={\n\tssid="%s"\n' "${UPLINK_SSID:-${WIFI_SSID}}"
 			[ -n "${UPLINK_BSSID}" ] && printf '\tbssid=%s\n' "${UPLINK_BSSID}"
