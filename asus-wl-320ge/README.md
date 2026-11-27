@@ -15,8 +15,8 @@ What the access point does once flashed:
 | Area | Setup | Configured in |
 |---|---|---|
 | Network | The Ethernet port and the Wi-Fi are one bridge in the main router's network, which hands out the addresses. The access point itself is at `192.168.2.3/24`, with `192.168.2.1` as gateway and DNS. No DHCP or DNS server, no firewall, no IPv6 | `99-uci_config` |
-| Wi-Fi | One 2.4 GHz network with WPA2 on a fixed channel. hostapd runs on its own from `/etc/hostapd.conf`, which build.sh writes from the settings; OpenWrt's Wi-Fi scripts are left out, so a hook hands the access point to netifd as a bridge port whenever the LAN comes up, and a restart of netifd no longer leaves it out. The radio's queues are capped at 512 KB of the 16 MB | `build.sh`, `files/etc/init.d/ap`, `files/etc/hotplug.d/iface/50-ap-bridge` |
-| Repeater | With `REPEATER=1`, the access point also joins a Wi-Fi as a client on a second interface (`sta0`), and `relayd` ties that uplink to the bridge, so its clients reach the main router over the air without a cable. The one radio carries both, so the channel has to be the upstream's, and both use the radio's one address: the radio acknowledges frames for that address only | `build.sh`, `files/etc/init.d/repeater` |
+| Wi-Fi | One 2.4 GHz network with WPA2 on a fixed channel, or as a repeater the uplink's. hostapd runs on its own from `/etc/hostapd.conf`, which build.sh writes from the settings; OpenWrt's Wi-Fi scripts are left out, so a hook hands the access point to netifd as a bridge port whenever the LAN comes up, and a restart of netifd no longer leaves it out. The radio's queues are capped at 512 KB of the 16 MB | `build.sh`, `files/etc/init.d/ap`, `files/etc/hotplug.d/iface/50-ap-bridge` |
+| Repeater | With `REPEATER=1`, the access point also joins a Wi-Fi as a client on a second interface (`sta0`), and `relayd` ties that uplink to the bridge, so its clients reach the main router over the air without a cable. The one radio carries both on one channel, which the access point takes from the uplink: it starts once the uplink has joined, on its channel, and stops when the uplink has been gone for 20 seconds, which frees the radio for the uplink to find the network on any channel. Both use the radio's one address: the radio acknowledges frames for that address only | `build.sh`, `files/etc/init.d/repeater`, `files/usr/sbin/follow-uplink` |
 | Settings | Stateless: everything comes from the image. `/etc` gets a RAM overlay at every boot and the rest stays the read-only squashfs; nothing writes to the flash outside a firmware upgrade, and a change made on the access point is gone after a restart | `files/lib/preinit/80_mount_root`, `kernel.config` |
 | Restart | Every day at 04:00, with about a minute without Wi-Fi: about 3.7 MB are available after boot and about 1 MB less after a day. There is no cron daemon; the service reads the clock, and acts only once the clock has been set from the network, never in the first hour after a start | `files/etc/init.d/restart`, `files/etc/init.d/sysntpd` |
 | Access | SSH with keys only. The host key is made once by build.sh and comes with the image, so it stays the same | `99-uci_config`, `build.sh` |
@@ -76,9 +76,9 @@ into `private/.env`, which overrides it and is not in the repo:
 | `LAN_ADDRESS` | `192.168.2.3/24` | its address, outside the main router's DHCP range |
 | `GATEWAY` | `192.168.2.1` | the main router |
 | `TIMEZONE`, `TIMEZONE_RULE` | Lisbon | the time zone |
-| `WIFI_SSID`, `WIFI_COUNTRY`, `WIFI_CHANNEL` | `OpenWrt`, `PT`, `11` | the network. The channel is fixed: the Wi-Fi driver cannot survey channels for the access point to pick one |
+| `WIFI_SSID`, `WIFI_COUNTRY`, `WIFI_CHANNEL` | `OpenWrt`, `PT`, `11` | the network. The channel is fixed: the Wi-Fi driver cannot survey channels for the access point to pick one. A repeater takes the uplink's instead |
 | `WIFI_KEY` | none | the password, 8 to 63 characters, in `private/.env` only. Without it the image comes with Wi-Fi off |
-| `REPEATER`, `UPLINK_SSID`, `UPLINK_BSSID` | off | `REPEATER=1` extends the Wi-Fi above instead of only serving it; `UPLINK_SSID` names the network to join when it is not `WIFI_SSID` (same password), and `UPLINK_BSSID` pins which access point to join. Then `WIFI_CHANNEL` has to be the upstream's, and a `WIFI_KEY` is needed |
+| `REPEATER`, `UPLINK_SSID`, `UPLINK_BSSID` | off | `REPEATER=1` extends the Wi-Fi above instead of only serving it; `UPLINK_SSID` names the network to join when it is not `WIFI_SSID` (same password), and `UPLINK_BSSID` pins which access point to join. Then a `WIFI_KEY` is needed |
 | `RESTART_AT` | `04:00` | the time of the daily restart, in the time zone above; empty for none |
 | `KEY` | none | for flash.sh: the SSH key to log in with |
 
@@ -201,6 +201,11 @@ halfway leaves half an image, and then only the boot loader's recovery mode take
   the main router 8.5–8.7 Mbit/s down and 7.6–7.8 up, pings 76–115 ms meanwhile, against
   about 17 and 18 Mbit/s as an access point): it is for reach and light use, not a busy link. It also holds the uplink until the station has joined and the
   gateway answers, so `relayd` routes it at once instead of finding it slowly.
+- As a repeater it has no Wi-Fi network of its own while the uplink is down: the access
+  point goes off about 25 seconds after the uplink is lost, and is back about 7 seconds
+  after the uplink has joined again. When the network it repeats moves to another channel,
+  its clients are without Wi-Fi for about half a minute. Without an uplink it is reachable
+  through its Ethernet port only.
 - The Ethernet port keeps its 200 receive buffers. With 64, a burst from a wired client
   ran them dry, and the driver's recovery, a chip reset that swaps every buffer, let the
   chip write into freed memory: the device crashed during a large upload.

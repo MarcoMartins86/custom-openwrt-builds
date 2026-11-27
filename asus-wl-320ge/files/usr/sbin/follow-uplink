@@ -1,0 +1,41 @@
+#!/bin/sh
+# Keeps a repeater's access point on its uplink's channel; /etc/init.d/repeater runs it.
+# The one radio carries both on one channel, and while the access point holds it the
+# station can join on that channel only. So the access point starts once the station has
+# joined, on the station's channel, moves when the station is on another, and stops once
+# the uplink has been gone for LOST seconds, which frees the radio for the station to find
+# the upstream on any channel. Without an uplink there is no access point either, whose
+# clients would reach nothing.
+
+STA=sta0
+AP=phy0-ap0
+# The access point's configuration with the uplink's channel, which /etc/init.d/ap runs
+CONF=/var/run/hostapd.conf
+# Long enough for a reconnect to the same upstream, which takes a few seconds
+LOST=20
+
+on=
+gone=0
+while sleep 3; do
+	freq="$(iw dev ${STA} link 2> /dev/null | sed -n 's/^[[:space:]]*freq: \([0-9]*\).*/\1/p')"
+	if [ -n "${freq}" ]; then
+		gone=0
+		# Channels 1 to 13 are 5 MHz apart, from 2412 MHz
+		ch=$(((freq - 2407) / 5))
+		[ "${ch}" = "${on}" ] && continue
+		(umask 077; sed "s/^channel=.*/channel=${ch}/" /etc/hostapd.conf > ${CONF})
+		/etc/init.d/ap restart
+		on=${ch}
+	elif [ -n "${on}" ]; then
+		gone=$((gone + 3))
+		[ ${gone} -ge ${LOST} ] || continue
+		rm -f ${CONF}
+		/etc/init.d/ap stop
+		# The interface goes with hostapd: brought up without it, by netifd as a bridge
+		# port, it would take the radio over from the station
+		for i in 1 2 3 4 5; do pidof hostapd > /dev/null || break; sleep 1; done
+		iw dev ${AP} del 2> /dev/null
+		on=
+		gone=0
+	fi
+done
