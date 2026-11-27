@@ -130,6 +130,9 @@ process's memory map then showed where every page went. The image boots as on th
 On the device itself, as a repeater with the b43 series above, 3.1–3.2 MB stay available
 after a client's load tests through it. Before the series, with about 180 KB more, uploads
 of 160 and 320 MB from a wired client through the repeater ran without touching swap.
+The 180 KB is after boot. In the load tests as an access point, 300–500 KB less stayed
+available than before the series while a client uploaded at full speed, which b43 receives,
+and up to 250 KB less while it downloaded.
 
 What made the room, largest first:
 
